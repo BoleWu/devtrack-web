@@ -31,10 +31,14 @@ service.interceptors.response.use(
             ElMessage.error(res.message || 'Error')
 
             // 处理 Token 过期或未登录
-            if (res.code === 401) {
+            if (res.code === 401 || res.message?.includes('Invalid token')) {
                 const userStore = useUserStore()
                 userStore.logout()
+                // 清除浏览器缓存
+                localStorage.clear()
+                sessionStorage.clear()
                 router.push('/login')
+                ElMessage.error('登录已过期，请重新登录')
             }
             return Promise.reject(new Error(res.message || 'Error'))
         } else {

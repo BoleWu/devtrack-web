@@ -3,8 +3,18 @@ import { login, register } from '@/api/auth'
 import { ref } from 'vue'
 
 export const useUserStore = defineStore('user', () => {
-    const token = ref(localStorage.getItem('token') || '')
-    const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || '{}'))
+    // 验证本地存储的令牌是否有效
+    const storedToken = localStorage.getItem('token')
+    const token = ref(storedToken && storedToken !== 'undefined' ? storedToken : '')
+    const storedUserInfo = localStorage.getItem('userInfo')
+    let initialUserInfo = { username: '' }
+    if (storedUserInfo && storedUserInfo !== 'undefined') {
+        try {
+            const parsed = JSON.parse(storedUserInfo)
+            if (parsed && typeof parsed === 'object') initialUserInfo = parsed
+        } catch (_) {}
+    }
+    const userInfo = ref(initialUserInfo)
 
     const handleLogin = async (loginForm) => {
         try {
@@ -21,7 +31,7 @@ export const useUserStore = defineStore('user', () => {
 
     const logout = () => {
         token.value = ''
-        userInfo.value = {}
+        userInfo.value = { username: '' }
         localStorage.removeItem('token')
         localStorage.removeItem('userInfo')
     }

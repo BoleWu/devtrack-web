@@ -42,7 +42,12 @@ const router = useRouter()
 const onSubmit = async () => {
   if (isLogin.value) {
     const success = await userStore.handleLogin(form)
-    if (success) router.push('/')
+    if (success) {
+      // 登录成功后跳转到首页
+      router.push('/')
+    } else {
+      ElMessage.error('登录失败，请检查用户名和密码')
+    }
   } else {
     try {
       await register(form)

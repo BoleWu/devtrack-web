@@ -26,7 +26,7 @@
             <el-header style="text-align: right; font-size: 12px">
                 <el-dropdown>
                     <span class="el-dropdown-link">
-                        {{ userStore.userInfo.username }}
+                        {{ userStore.userInfo?.username || '未登录' }}
                         <el-icon class="el-icon--right"><arrow-down /></el-icon>
                     </span>
                     <template #dropdown>
@@ -60,6 +60,7 @@ const logout = () => {
 <style scoped>
 .layout-container {
     height: 100vh;
+    overflow: hidden;
 }
 
 .el-header {
