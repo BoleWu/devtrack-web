@@ -1,6 +1,10 @@
 import request from '@/utils/request'
 
-// 获取任务列表（支持按项目ID筛选）
+/**
+ * 获取任务列表
+ * @param {Object} params - 查询参数 { projectId, assigneeId, status... }
+ * @returns {Promise}
+ */
 export function getTaskList(params) {
   return request({
     url: '/tasks',
@@ -9,7 +13,11 @@ export function getTaskList(params) {
   })
 }
 
-// 获取单个任务详情
+/**
+ * 获取任务详情
+ * @param {number} id - 任务ID
+ * @returns {Promise}
+ */
 export function getTaskDetail(id) {
   return request({
     url: `/tasks/${id}`,
@@ -17,7 +25,11 @@ export function getTaskDetail(id) {
   })
 }
 
-// 创建任务
+/**
+ * 创建任务
+ * @param {Object} data - 任务数据
+ * @returns {Promise}
+ */
 export function createTask(data) {
   return request({
     url: '/tasks',
@@ -26,7 +38,12 @@ export function createTask(data) {
   })
 }
 
-// 更新任务
+/**
+ * 更新任务信息
+ * @param {number} id - 任务ID
+ * @param {Object} data - 更新数据
+ * @returns {Promise}
+ */
 export function updateTask(id, data) {
   return request({
     url: `/tasks/${id}`, // 注意：如果你的后端是 PUT /tasks，请去掉 /{id}
@@ -35,7 +52,12 @@ export function updateTask(id, data) {
   })
 }
 
-// 更新任务状态（拖拽看板时使用）
+/**
+ * 更新任务状态（拖拽看板时使用）
+ * @param {number} id - 任务ID
+ * @param {string} status - 新状态
+ * @returns {Promise}
+ */
 export function updateTaskStatus(id, status) {
   return request({
     url: `/tasks/${id}/status`,
@@ -44,7 +66,11 @@ export function updateTaskStatus(id, status) {
   })
 }
 
-// 删除任务
+/**
+ * 删除任务
+ * @param {number} id - 任务ID
+ * @returns {Promise}
+ */
 export function deleteTask(id) {
   return request({
     url: `/tasks/${id}`,

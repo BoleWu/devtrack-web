@@ -1,5 +1,6 @@
 <template>
   <div class="app-container">
+    <!-- 顶部筛选栏 -->
     <div class="filter-container">
       <el-form :inline="true" :model="queryParams" class="demo-form-inline">
         <el-form-item label="所属项目">
@@ -25,6 +26,7 @@
       </el-form>
     </div>
 
+    <!-- 列表视图 -->
     <div v-if="viewMode === 'list'" v-loading="loading">
       <el-table :data="taskList" border style="width: 100%">
         <el-table-column prop="id" label="ID" width="80" />
@@ -49,6 +51,7 @@
       </el-table>
     </div>
 
+    <!-- 看板视图 -->
     <div v-else class="kanban-container" v-loading="loading">
       <!-- 空状态提示 -->
       <div v-if="taskList.length === 0 && !loading" class="empty-state">
@@ -82,6 +85,7 @@
       </template>
     </div>
 
+    <!-- 任务编辑/新建弹窗 -->
     <el-dialog
       :title="dialogType === 'create' ? '新建任务' : '编辑任务'"
       v-model="dialogVisible"
@@ -150,18 +154,18 @@ import { getTaskList, createTask, updateTask, deleteTask } from '@/api/task'
 import { getProjectList } from '@/api/project'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-// 数据定义
+// --- 数据定义 ---
 const loading = ref(false)
 const taskList = ref([])
 const projectOptions = ref([]) // 项目下拉框数据
-const viewMode = ref('list') // list | kanban
+const viewMode = ref('list') // 视图模式: 'list' | 'kanban'
 const queryParams = reactive({
   projectId: null
 })
 
-// 弹窗控制
+// --- 弹窗控制 ---
 const dialogVisible = ref(false)
-const dialogType = ref('create') // create | edit
+const dialogType = ref('create') // 'create' | 'edit'
 const form = reactive({
   id: null,
   projectId: null,
@@ -172,20 +176,23 @@ const form = reactive({
   dueDate: ''
 })
 
-// 状态定义（用于看板）
+// --- 状态常量（用于看板）---
 const statusList = [
   { key: 'TODO', label: '待处理', type: 'info' },
   { key: 'IN_PROGRESS', label: '进行中', type: 'primary' },
   { key: 'DONE', label: '已完成', type: 'success' }
 ]
 
-// 初始化
+// --- 初始化 ---
 onMounted(async () => {
   await loadProjects()
   fetchTasks()
 })
 
-// 获取项目列表（用于下拉框）
+/**
+ * 获取项目列表（用于下拉框）
+ * 默认选中第一个项目
+ */
 const loadProjects = async () => {
   try {
     const res = await getProjectList()
@@ -202,7 +209,10 @@ const loadProjects = async () => {
   }
 }
 
-// 获取任务数据
+/**
+ * 获取任务数据
+ * 根据 queryParams.projectId 查询
+ */
 const fetchTasks = async () => {
   // 如果没有选择项目，显示提示信息
   if (!queryParams.projectId) {
@@ -229,12 +239,17 @@ const fetchTasks = async () => {
   }
 }
 
-// 看板辅助函数：按状态过滤任务
+/**
+ * 看板辅助函数：按状态过滤任务
+ * @param {string} status 
+ */
 const getTasksByStatus = (status) => {
   return taskList.value.filter(t => t.status === status)
 }
 
-// 打开新建弹窗
+/**
+ * 打开新建弹窗
+ */
 const handleCreate = () => {
   dialogType.value = 'create'
   // 重置表单，保留当前选中的 projectId
@@ -250,14 +265,20 @@ const handleCreate = () => {
   dialogVisible.value = true
 }
 
-// 打开编辑弹窗
+/**
+ * 打开编辑弹窗
+ * @param {Object} row 
+ */
 const handleEdit = (row) => {
   dialogType.value = 'edit'
   Object.assign(form, row)
   dialogVisible.value = true
 }
 
-// 提交表单
+/**
+ * 提交表单
+ * 处理新建和更新逻辑
+ */
 const submitForm = async () => {
   if (!form.title || !form.projectId) {
     ElMessage.warning('请填写必要信息')
@@ -279,7 +300,10 @@ const submitForm = async () => {
   }
 }
 
-// 删除任务
+/**
+ * 删除任务
+ * @param {number} id 
+ */
 const handleDelete = (id) => {
   ElMessageBox.confirm('确定删除该任务吗?', '提示', {
     confirmButtonText: '确定',
@@ -292,7 +316,7 @@ const handleDelete = (id) => {
   })
 }
 
-// 样式辅助
+// --- 样式辅助 ---
 const getPriorityType = (val) => {
   const map = { LOW: 'info', MEDIUM: 'warning', HIGH: 'danger' }
   return map[val] || ''

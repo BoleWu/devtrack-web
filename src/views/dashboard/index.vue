@@ -77,11 +77,11 @@ import { getProjectList } from '@/api/project' // 引入获取项目列表的API
 import { Folder, List, Check, Timer } from '@element-plus/icons-vue'
 
 // --- 状态定义 ---
-const loading = ref(false)
-const selectedProject = ref(null)
-const projectOptions = ref([])
+const loading = ref(false) // 加载状态
+const selectedProject = ref(null) // 当前选中的项目ID，null表示所有项目
+const projectOptions = ref([]) // 项目下拉选项
 
-// DOM 引用
+// DOM 引用，用于 ECharts 初始化
 const burnDownRef = ref(null)
 const ganttRef = ref(null)
 
@@ -89,7 +89,7 @@ const ganttRef = ref(null)
 let burnDownChart = null
 let ganttChart = null
 
-// 统计数据
+// 统计卡片数据
 const statCards = reactive([
     { title: '总项目数', value: 0, icon: 'Folder', color: '#409EFF' },
     { title: '进行中项目', value: 0, icon: 'Timer', color: '#E6A23C' },
@@ -97,7 +97,7 @@ const statCards = reactive([
     { title: '已完成任务', value: 0, icon: 'Check', color: '#F56C6C' }
 ])
 
-const progressList = ref([])
+const progressList = ref([]) // 项目进度列表数据
 
 // --- 初始化与加载 ---
 onMounted(async () => {
@@ -114,8 +114,8 @@ onBeforeUnmount(() => {
 
 const loadProjects = async () => {
     try {
-        const res = await getProjectList()
-        projectOptions.value = res || []
+        const res = await getProjectList({ page: 1, limit: 1000 })
+        projectOptions.value = res?.data || []
     } catch (e) {
         console.error("加载项目列表失败", e)
     }
@@ -206,9 +206,10 @@ const renderGanttItem = (params, api) => {
 const initBurnDownChart = async () => {
     if (!burnDownRef.value) return
     if (!burnDownChart) burnDownChart = echarts.init(burnDownRef.value)
-
+    console.log("selectedProject.value:", selectedProject.value)
     try {
         const data = await getBurnDownChart(selectedProject.value) || []
+        console.log("burnDownChart data:", data)
         const dates = data.map(item => item.day)
         const values = data.map(item => item.remain)
 

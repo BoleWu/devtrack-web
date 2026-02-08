@@ -34,13 +34,20 @@ import { register } from '@/api/auth'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
+// 登录/注册模式切换
 const isLogin = ref(true)
+// 表单数据
 const form = reactive({ username: '', password: '', email: '', role: 'USER' })
 const userStore = useUserStore()
 const router = useRouter()
 
+/**
+ * 提交表单
+ * 根据 isLogin 状态判断是登录还是注册
+ */
 const onSubmit = async () => {
   if (isLogin.value) {
+    // 处理登录
     const success = await userStore.handleLogin(form)
     if (success) {
       // 登录成功后跳转到首页
@@ -49,10 +56,11 @@ const onSubmit = async () => {
       ElMessage.error('登录失败，请检查用户名和密码')
     }
   } else {
+    // 处理注册
     try {
       await register(form)
       ElMessage.success('注册成功，请登录')
-      isLogin.value = true
+      isLogin.value = true // 注册成功后切换回登录模式
     } catch (e) {
       // 错误由拦截器处理
     }

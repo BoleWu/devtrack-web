@@ -46,11 +46,14 @@
 <script setup>
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
-import { Odometer, Folder, ArrowDown } from '@element-plus/icons-vue'
+import { Odometer, Folder, ArrowDown, List } from '@element-plus/icons-vue'
 
 const userStore = useUserStore()
 const router = useRouter()
 
+/**
+ * 退出登录
+ */
 const logout = () => {
     userStore.logout()
     router.push('/login')

@@ -1,13 +1,24 @@
 import request from '@/utils/request'
 
+/**
+ * 获取项目列表 (分页)
+ * @param {Object} params - 查询参数 { name, page, limit }
+ * @returns {Promise}
+ */
 export function getProjectList(params) {
   return request({
     url: '/project/getProjectByList',
-    method: 'get',
-    params // status, userId 等
+    method: 'post',
+    data: params
   })
 }
 
+/**
+ * 创建项目
+ * 尝试多个 API 端点以兼容不同的后端实现
+ * @param {Object} data - 项目数据
+ * @returns {Promise}
+ */
 export async function createProject(data) {
   const payload = data && typeof data === 'object' ? data : {}
 
@@ -26,6 +37,7 @@ export async function createProject(data) {
       })
   ]
 
+  // 轮询尝试，直到成功或全部失败
   let lastError
   for (const run of attempts) {
     try {
@@ -37,85 +49,47 @@ export async function createProject(data) {
   throw lastError
 }
 
-export async function updateProject(id, data) {
-  const payload = data && typeof data === 'object' ? data : {}
-
-  const attempts = [
-    () =>
-      request({
-        url: `/project/projects/${id}`,
-        method: 'put',
-        data: payload
-      }),
-    () =>
-      request({
-        url: '/project/updateproject',
-        method: 'put',
-        data: { id, ...payload }
-      }),
-    () =>
-      request({
-        url: '/project/updateproject',
-        method: 'post',
-        data: { id, ...payload }
-      }),
-    () =>
-      request({
-        url: `/project/${id}`,
-        method: 'put',
-        data: payload
-      })
-  ]
-
-  let lastError
-  for (const run of attempts) {
-    try {
-      return await run()
-    } catch (e) {
-      lastError = e
+/**
+ * 更新项目
+ * @param {number} id - 项目ID
+ * @param {Object} data - 更新数据 { name, description, status }
+ * @returns {Promise}
+ */
+export function updateProject(id, data) {
+  return request({
+    url: '/project/updateProject',
+    method: 'post',
+    data: {
+      id,
+      name: data.name,
+      description: data.description,
+      status: data.status
     }
-  }
-  throw lastError
+  })
 }
 
-export async function deleteProject(id) {
-  const attempts = [
-    () =>
-      request({
-        url: `/project/projects/${id}`,
-        method: 'delete'
-      }),
-    () =>
-      request({
-        url: `/project/deleteproject/${id}`,
-        method: 'delete'
-      }),
-    () =>
-      request({
-        url: '/project/deleteproject',
-        method: 'delete',
-        params: { id }
-      }),
-    () =>
-      request({
-        url: '/project/deleteproject',
-        method: 'post',
-        data: { id }
-      }),
-    () =>
-      request({
-        url: `/project/${id}`,
-        method: 'delete'
-      })
-  ]
+/**
+ * 更新项目成员信息
+ * @param {Object} data - { id: projectId, members: [{id, name}, ...] }
+ * @returns {Promise}
+ */
+export function updateProjectUserInfo(data) {
+  return request({
+    url: '/api/project/updateProjectUserInfo',
+    method: 'post',
+    data
+  })
+}
 
-  let lastError
-  for (const run of attempts) {
-    try {
-      return await run()
-    } catch (e) {
-      lastError = e
-    }
-  }
-  throw lastError
+/**
+ * 删除项目
+ * @param {number} id - 项目ID
+ * @returns {Promise}
+ */
+export function deleteProject(id) {
+  return request({
+    url: '/project/deleteProject',
+    method: 'get',
+    params: { projectId: id }
+  })
 }
