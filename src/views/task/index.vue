@@ -28,21 +28,20 @@
 
     <!-- 列表视图 -->
     <div v-if="viewMode === 'list'" v-loading="loading">
-      <el-table :data="taskList" border style="width: 100%">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="任务标题" />
-        <el-table-column prop="priority" label="优先级" width="100">
+      <el-table ref="tableRef" :data="taskList" border style="width: 100%" @header-dragend="handleHeaderDragend">
+        <el-table-column prop="title" label="任务标题" align="center" min-width="200" />
+        <el-table-column prop="priority" label="优先级" align="center" width="100">
           <template #default="{ row }">
             <el-tag :type="getPriorityType(row.priority)">{{ getPriorityLabel(row.priority) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="120">
+        <el-table-column prop="status" label="状态" align="center" width="120">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)" effect="dark">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="deadline" label="截止日期" width="180" />
-        <el-table-column label="操作" width="200" align="center">
+        <el-table-column label="操作" width="200" align="center" fixed="right" :resizable="false">
           <template #default="scope">
             <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
             <el-button size="small" type="danger" @click="handleDelete(scope.row.id)">删除</el-button>
@@ -159,6 +158,26 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 // --- 数据定义 ---
 const loading = ref(false)
 const taskList = ref([])
+const tableRef = ref(null)
+
+const handleHeaderDragend = (newWidth, oldWidth, column, event) => {
+  const delta = newWidth - oldWidth
+  if (delta === 0) return
+
+  const columns = tableRef.value?.store?.states?.columns?.value || []
+  const idx = columns.findIndex(c => c.id === column.id)
+  
+  if (idx === -1 || idx === columns.length - 1) return
+
+  const nextCol = columns[idx + 1]
+  const nextWidth = nextCol.realWidth || nextCol.width || 0
+  
+  const minWidth = nextCol.minWidth || 40 
+  const targetWidth = Math.max(minWidth, nextWidth - delta)
+  
+  nextCol.width = targetWidth
+}
+
 const projectOptions = ref([]) // 项目下拉框数据
 const viewMode = ref('list') // 视图模式: 'list' | 'kanban'
 const queryParams = reactive({
@@ -172,10 +191,9 @@ const form = reactive({
   id: null,
   projectId: null,
   title: '',
-  description: '',
   priority: 3,
   status: 'TODO',
-  dueDate: ''
+  deadline: null
 })
 
 // --- 状态常量（用于看板）---
@@ -266,10 +284,9 @@ const handleCreate = () => {
     id: null,
     projectId: queryParams.projectId,
     title: '',
-    description: '',
     priority: 3,
     status: 'TODO',
-    dueDate: ''
+    deadline: null
   })
   dialogVisible.value = true
 }
@@ -296,10 +313,12 @@ const submitForm = async () => {
   
   try {
     if (dialogType.value === 'create') {
-      await createTask(form)
+      // 创建任务时去掉 id 参数
+      const { id, ...createPayload } = form
+      await createTask(createPayload)
       ElMessage.success('创建成功')
     } else {
-      await updateTask(form.id, form)
+      await updateTask(form)
       ElMessage.success('更新成功')
     }
     dialogVisible.value = false

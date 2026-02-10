@@ -7,7 +7,7 @@ import request from '@/utils/request'
  */
 export function getTaskList(params) {
   return request({
-    url: '/tasks/getTaskByList',
+    url: '/task/getTaskByList',
     method: 'get',
     params // 可能包含 projectId, assigneeId, status 等
   })
@@ -20,7 +20,7 @@ export function getTaskList(params) {
  */
 export function getTaskDetail(id) {
   return request({
-    url: `/tasks/tasks/${id}`,
+    url: `/task/tasks/${id}`,
     method: 'get'
   })
 }
@@ -32,7 +32,7 @@ export function getTaskDetail(id) {
  */
 export function createTask(data) {
   return request({
-    url: '/tasks/createtask',
+    url: '/task/createTask',
     method: 'post',
     data // TaskDTO
   })
@@ -73,7 +73,8 @@ export function updateTaskStatus(id, status) {
  */
 export function deleteTask(id) {
   return request({
-    url: `/task/tasks/${id}`,
-    method: 'delete'
+    url: '/task/deleteTask',
+    method: 'get',
+    params: { id }
   })
 }
