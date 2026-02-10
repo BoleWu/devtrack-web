@@ -4,11 +4,11 @@
     <div class="filter-container">
       <el-form :inline="true" :model="queryParams" class="demo-form-inline">
         <el-form-item label="所属项目">
-          <el-select v-model="queryParams.projectId" placeholder="选择项目" clearable @change="fetchTasks">
+          <el-select v-model="queryParams.projectId" placeholder="选择项目" clearable @change="fetchTasks" style="width: 240px">
             <el-option
               v-for="item in projectOptions"
               :key="item.id"
-              :label="item.projectName"
+              :label="item.name || item.projectName"
               :value="item.id"
             />
           </el-select>
@@ -33,7 +33,7 @@
         <el-table-column prop="title" label="任务标题" />
         <el-table-column prop="priority" label="优先级" width="100">
           <template #default="{ row }">
-            <el-tag :type="getPriorityType(row.priority)">{{ row.priority }}</el-tag>
+            <el-tag :type="getPriorityType(row.priority)">{{ getPriorityLabel(row.priority) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="120">
@@ -41,7 +41,7 @@
             <el-tag :type="getStatusType(row.status)" effect="dark">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="dueDate" label="截止日期" width="180" />
+        <el-table-column prop="deadline" label="截止日期" width="180" />
         <el-table-column label="操作" width="200" align="center">
           <template #default="scope">
             <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
@@ -76,8 +76,8 @@
             >
               <div class="card-title">{{ task.title }}</div>
               <div class="card-meta">
-                <el-tag size="small" :type="getPriorityType(task.priority)">{{ task.priority }}</el-tag>
-                <span class="due-date">{{ task.dueDate }}</span>
+                <el-tag size="small" :type="getPriorityType(task.priority)">{{ getPriorityLabel(task.priority) }}</el-tag>
+                <span class="due-date">{{ task.deadline }}</span>
               </div>
               </el-card>
           </div>
@@ -97,7 +97,7 @@
             <el-option
               v-for="item in projectOptions"
               :key="item.id"
-              :label="item.projectName"
+              :label="item.name || item.projectName"
               :value="item.id"
             />
           </el-select>
@@ -112,9 +112,10 @@
           <el-col :span="12">
             <el-form-item label="优先级">
               <el-select v-model="form.priority">
-                <el-option label="LOW" value="LOW" />
-                <el-option label="MEDIUM" value="MEDIUM" />
-                <el-option label="HIGH" value="HIGH" />
+                <el-option label="紧急" :value="1" />
+                <el-option label="高" :value="2" />
+                <el-option label="中" :value="3" />
+                <el-option label="低" :value="4" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -122,15 +123,16 @@
             <el-form-item label="状态">
               <el-select v-model="form.status">
                 <el-option label="TODO" value="TODO" />
-                <el-option label="IN_PROGRESS" value="IN_PROGRESS" />
+                <el-option label="DOING" value="DOING" />
                 <el-option label="DONE" value="DONE" />
+                <el-option label="BLOCKED" value="BLOCKED" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
         <el-form-item label="截止日期">
           <el-date-picker
-            v-model="form.dueDate"
+            v-model="form.deadline"
             type="date"
             placeholder="选择日期"
             value-format="YYYY-MM-DD"
@@ -171,7 +173,7 @@ const form = reactive({
   projectId: null,
   title: '',
   description: '',
-  priority: 'MEDIUM',
+  priority: 3,
   status: 'TODO',
   dueDate: ''
 })
@@ -179,8 +181,9 @@ const form = reactive({
 // --- 状态常量（用于看板）---
 const statusList = [
   { key: 'TODO', label: '待处理', type: 'info' },
-  { key: 'IN_PROGRESS', label: '进行中', type: 'primary' },
-  { key: 'DONE', label: '已完成', type: 'success' }
+  { key: 'DOING', label: '进行中', type: 'primary' },
+  { key: 'DONE', label: '已完成', type: 'success' },
+  { key: 'BLOCKED', label: '阻塞', type: 'danger' }
 ]
 
 // --- 初始化 ---
@@ -195,8 +198,11 @@ onMounted(async () => {
  */
 const loadProjects = async () => {
   try {
-    const res = await getProjectList()
-    projectOptions.value = res || []
+    // 获取项目列表（下拉框用，获取第一页数据）
+    const res = await getProjectList({ page: 1, limit: 100 })
+    // 如果返回的是分页结构 { records: [], total: 0 }，取 records
+    const list = res.records || res.data || res || []
+    projectOptions.value = Array.isArray(list) ? list : []
     // 默认选中第一个项目（如果有）
     if (projectOptions.value.length > 0) {
       queryParams.projectId = projectOptions.value[0].id
@@ -244,6 +250,9 @@ const fetchTasks = async () => {
  * @param {string} status 
  */
 const getTasksByStatus = (status) => {
+  if (status === 'DOING') {
+    return taskList.value.filter(t => t.status === 'DOING' || t.status === 'IN_PROGRESS')
+  }
   return taskList.value.filter(t => t.status === status)
 }
 
@@ -258,7 +267,7 @@ const handleCreate = () => {
     projectId: queryParams.projectId,
     title: '',
     description: '',
-    priority: 'MEDIUM',
+    priority: 3,
     status: 'TODO',
     dueDate: ''
   })
@@ -317,12 +326,21 @@ const handleDelete = (id) => {
 }
 
 // --- 样式辅助 ---
-const getPriorityType = (val) => {
-  const map = { LOW: 'info', MEDIUM: 'warning', HIGH: 'danger' }
-  return map[val] || ''
+const priorityMap = {
+  1: { label: '紧急', type: 'danger' },
+  2: { label: '高', type: 'warning' },
+  3: { label: '中', type: 'primary' },
+  4: { label: '低', type: 'info' }
 }
+const getPriorityLabel = (val) => {
+  return priorityMap[val]?.label || val
+}
+const getPriorityType = (val) => {
+  return priorityMap[val]?.type || ''
+}
+
 const getStatusType = (val) => {
-  const map = { TODO: 'info', IN_PROGRESS: 'primary', DONE: 'success' }
+  const map = { TODO: 'info', DOING: 'primary', IN_PROGRESS: 'primary', DONE: 'success', BLOCKED: 'danger' }
   return map[val] || ''
 }
 </script>
@@ -356,6 +374,7 @@ const getStatusType = (val) => {
 .header-info { background-color: #909399; }
 .header-primary { background-color: #409eff; }
 .header-success { background-color: #67c23a; }
+.header-danger { background-color: #F56C6C; }
 
 .kanban-card {
   margin-bottom: 10px;

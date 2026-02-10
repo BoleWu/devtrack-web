@@ -7,7 +7,7 @@ import request from '@/utils/request'
  */
 export function getTaskList(params) {
   return request({
-    url: '/tasks',
+    url: '/tasks/getTaskByList',
     method: 'get',
     params // 可能包含 projectId, assigneeId, status 等
   })
@@ -20,7 +20,7 @@ export function getTaskList(params) {
  */
 export function getTaskDetail(id) {
   return request({
-    url: `/tasks/${id}`,
+    url: `/tasks/tasks/${id}`,
     method: 'get'
   })
 }
@@ -32,7 +32,7 @@ export function getTaskDetail(id) {
  */
 export function createTask(data) {
   return request({
-    url: '/tasks',
+    url: '/tasks/createtask',
     method: 'post',
     data // TaskDTO
   })
@@ -46,7 +46,7 @@ export function createTask(data) {
  */
 export function updateTask(id, data) {
   return request({
-    url: `/tasks/${id}`, // 注意：如果你的后端是 PUT /tasks，请去掉 /{id}
+    url: `/task/tasks/${id}`, // 注意：如果你的后端是 PUT /tasks，请去掉 /{id}
     method: 'put',
     data
   })
@@ -60,7 +60,7 @@ export function updateTask(id, data) {
  */
 export function updateTaskStatus(id, status) {
   return request({
-    url: `/tasks/${id}/status`,
+    url: `/task/tasks/${id}/status`,
     method: 'put',
     params: { status } // 假设后端接收 @RequestParam 或 @RequestBody，请根据实际调整
   })
@@ -73,7 +73,7 @@ export function updateTaskStatus(id, status) {
  */
 export function deleteTask(id) {
   return request({
-    url: `/tasks/${id}`,
+    url: `/task/tasks/${id}`,
     method: 'delete'
   })
 }

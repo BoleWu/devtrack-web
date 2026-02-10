@@ -115,7 +115,8 @@ onBeforeUnmount(() => {
 const loadProjects = async () => {
     try {
         const res = await getProjectList({ page: 1, limit: 1000 })
-        projectOptions.value = res?.data || []
+        // 如果后端返回分页结构 { records: [...], total: ... }
+        projectOptions.value = res.records || res || []
     } catch (e) {
         console.error("加载项目列表失败", e)
     }
@@ -246,6 +247,7 @@ const getStatusColor = (status) => {
         'IN_PROGRESS': '#409EFF',
         'DONE': '#67C23A',       // 已完成 - 绿色
         'COMPLETED': '#67C23A',
+        'BLOCKED': '#F56C6C',    // 阻塞 - 红色
         'success': '#67C23A'
     }
     return map[status] || '#409EFF';

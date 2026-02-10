@@ -14,9 +14,17 @@
         <el-form-item label="密码" prop="password">
           <el-input v-model="form.password" type="password" />
         </el-form-item>
-        <el-form-item v-if="!isLogin" label="邮箱" prop="email">
-          <el-input v-model="form.email" />
-        </el-form-item>
+        <template v-if="!isLogin">
+          <el-form-item label="姓名" prop="name">
+            <el-input v-model="form.name" />
+          </el-form-item>
+          <el-form-item label="邮箱" prop="email">
+            <el-input v-model="form.email" />
+          </el-form-item>
+          <el-form-item label="电话" prop="phone">
+            <el-input v-model="form.phone" />
+          </el-form-item>
+        </template>
         
         <el-form-item>
           <el-button type="primary" @click="onSubmit">{{ isLogin ? '登录' : '注册' }}</el-button>
@@ -37,7 +45,7 @@ import { ElMessage } from 'element-plus'
 // 登录/注册模式切换
 const isLogin = ref(true)
 // 表单数据
-const form = reactive({ username: '', password: '', email: '', role: 'USER' })
+const form = reactive({ username: '', password: '', email: '', name: '', phone: '', role: 'USER' })
 const userStore = useUserStore()
 const router = useRouter()
 

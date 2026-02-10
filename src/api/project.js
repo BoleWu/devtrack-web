@@ -2,14 +2,20 @@ import request from '@/utils/request'
 
 /**
  * 获取项目列表 (分页)
- * @param {Object} params - 查询参数 { name, page, limit }
+ * @param {Object} data - 查询参数 { name, page, limit }
  * @returns {Promise}
  */
-export function getProjectList(params) {
+export function getProjectList(data = {}) {
+  // 确保有默认的分页参数
+  const payload = {
+    name: data.name || '',
+    page: data.page || 1,
+    limit: data.limit || 10
+  }
   return request({
     url: '/project/getProjectByList',
     method: 'post',
-    data: params
+    data: payload
   })
 }
 
