@@ -78,3 +78,11 @@ export function deleteTask(id) {
     params: { id }
   })
 }
+
+export function taskAssignee(taskId, list) {
+  return request({
+    url: '/task/taskAssignee',
+    method: 'post',
+    data: { taskId, list }
+  })
+}

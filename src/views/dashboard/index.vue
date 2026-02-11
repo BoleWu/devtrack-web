@@ -24,9 +24,9 @@
                         <div class="card-header">
                             <span>项目燃尽图 (Burn Down Chart)</span>
                             <el-select v-model="selectedProject" placeholder="选择项目" size="small"
-                                @change="refreshCharts">
+                                @change="refreshCharts" @visible-change="(val) => val && loadProjects()">
                                 <el-option label="所有项目" :value="null" />
-                                <el-option v-for="item in projectOptions" :key="item.id" :label="item.name"
+                                <el-option v-for="item in projectOptions" :key="item.id" :label="item.name || item.projectName"
                                     :value="item.id" />
                             </el-select>
                         </div>
@@ -115,10 +115,14 @@ onBeforeUnmount(() => {
 const loadProjects = async () => {
     try {
         const res = await getProjectList({ page: 1, limit: 1000 })
-        // 如果后端返回分页结构 { records: [...], total: ... }
-        projectOptions.value = res.records || res || []
+        const list = res?.records || res?.data || res || []
+        projectOptions.value = Array.isArray(list) ? list : []
+        if (!selectedProject.value && projectOptions.value.length > 0) {
+            selectedProject.value = projectOptions.value[0].id
+        }
     } catch (e) {
         console.error("加载项目列表失败", e)
+        projectOptions.value = []
     }
 }
 
@@ -241,7 +245,7 @@ const initBurnDownChart = async () => {
 const getStatusColor = (status) => {
     if (!status) return '#409EFF'; // 默认蓝色
     const map = {
-        'TODO': '#909399',       // 待办 - 灰色
+        'TODO': '#409EFF',
         'PLANNED': '#909399',
         'DOING': '#409EFF',      // 进行中 - 蓝色
         'IN_PROGRESS': '#409EFF',

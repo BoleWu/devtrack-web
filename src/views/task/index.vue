@@ -29,7 +29,7 @@
     <!-- 列表视图 -->
     <div v-if="viewMode === 'list'" v-loading="loading">
       <el-table ref="tableRef" :data="taskList" border style="width: 100%" @header-dragend="handleHeaderDragend">
-        <el-table-column prop="title" label="任务标题" align="center" min-width="200" />
+        <el-table-column prop="title" label="任务标题" align="center"  min-width="200"  />
         <el-table-column prop="priority" label="优先级" align="center" width="100">
           <template #default="{ row }">
             <el-tag :type="getPriorityType(row.priority)">{{ getPriorityLabel(row.priority) }}</el-tag>
@@ -40,11 +40,33 @@
             <el-tag :type="getStatusType(row.status)" effect="dark">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="执行人" align="center" min-width="160">
+          <template #default="{ row }">
+            <span v-if="Array.isArray(row.members) && row.members.length">
+              {{ row.members.map(m => m.name).join('、') }}
+            </span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="deadline" label="截止日期" width="180" />
-        <el-table-column label="操作" width="200" align="center" fixed="right" :resizable="false">
+        <el-table-column label="操作" width="240" align="center" fixed="right" :resizable="false">
           <template #default="scope">
-            <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(scope.row.id)">删除</el-button>
+            <span class="op-actions">
+              <el-dropdown @command="cmd => handleChangeStatus(scope.row, cmd)">
+                <el-button size="small" :type="getStatusType(scope.row.status)">状态</el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item :command="'TODO'" :disabled="isStatusDisabled(scope.row.status, 'TODO')">TODO</el-dropdown-item>
+                    <el-dropdown-item :command="'DOING'" :disabled="isStatusDisabled(scope.row.status, 'DOING')">DOING</el-dropdown-item>
+                    <el-dropdown-item :command="'DONE'" :disabled="isStatusDisabled(scope.row.status, 'DONE')">DONE</el-dropdown-item>
+                    <el-dropdown-item :command="'BLOCKED'" :disabled="isStatusDisabled(scope.row.status, 'BLOCKED')">BLOCKED</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+              <el-button link type="success" @click="openAssign(scope.row)">指派</el-button>
+              <el-button link type="primary" @click="handleEdit(scope.row)">编辑</el-button>
+              <el-button link type="danger" @click="handleDelete(scope.row.id)">删除</el-button>
+            </span>
           </template>
         </el-table-column>
       </el-table>
@@ -92,7 +114,7 @@
     >
       <el-form :model="form" label-width="100px" ref="taskFormRef">
         <el-form-item label="所属项目" required>
-          <el-select v-model="form.projectId" placeholder="请选择项目" style="width: 100%">
+          <el-select v-model="form.projectId" placeholder="请选择项目" style="width: 100%" :disabled="dialogType === 'edit'">
             <el-option
               v-for="item in projectOptions"
               :key="item.id"
@@ -120,7 +142,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="状态">
-              <el-select v-model="form.status">
+              <el-select v-model="form.status" :disabled="dialogType === 'edit'">
                 <el-option label="TODO" value="TODO" />
                 <el-option label="DOING" value="DOING" />
                 <el-option label="DONE" value="DONE" />
@@ -138,6 +160,25 @@
             style="width: 100%"
           />
         </el-form-item>
+        <el-form-item v-if="dialogType === 'create'" label="任务指派">
+          <el-select
+            v-model="form.assigneeIds"
+            multiple
+            filterable
+            remote
+            :remote-method="searchUsers"
+            :loading="userLoading"
+            style="width: 100%"
+            @visible-change="(val) => val && searchUsers('')"
+          >
+            <el-option
+              v-for="u in userOptions"
+              :key="u.id"
+              :label="u.name"
+              :value="u.id"
+            />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
@@ -146,13 +187,44 @@
         </span>
       </template>
     </el-dialog>
+    <!-- 任务指派弹窗 -->
+    <el-dialog v-model="assignDialogVisible" title="任务指派" width="420px">
+      <el-form label-width="90px">
+        <el-form-item label="选择成员">
+          <el-select
+            v-model="assignSelectedIds"
+            multiple
+            filterable
+            remote
+            :remote-method="searchUsers"
+            :loading="userLoading"
+            style="width: 100%"
+            @visible-change="(val) => val && searchUsers('')"
+          >
+            <el-option
+              v-for="u in userOptions"
+              :key="u.id"
+              :label="u.name"
+              :value="u.id"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="assignDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitAssign">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
-import { getTaskList, createTask, updateTask, deleteTask } from '@/api/task'
+import { getTaskList, createTask, updateTask, deleteTask, taskAssignee } from '@/api/task'
 import { getProjectList } from '@/api/project'
+import { queryUserInfoByList } from '@/api/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 // --- 数据定义 ---
@@ -191,14 +263,16 @@ const form = reactive({
   id: null,
   projectId: null,
   title: '',
-  priority: 3,
-  status: 'TODO',
+  description: '',
+  priority: null,
+  status: null,
   deadline: null
+  , assigneeIds: []
 })
 
 // --- 状态常量（用于看板）---
 const statusList = [
-  { key: 'TODO', label: '待处理', type: 'info' },
+  { key: 'TODO', label: '待处理', type: 'primary' },
   { key: 'DOING', label: '进行中', type: 'primary' },
   { key: 'DONE', label: '已完成', type: 'success' },
   { key: 'BLOCKED', label: '阻塞', type: 'danger' }
@@ -274,6 +348,63 @@ const getTasksByStatus = (status) => {
   return taskList.value.filter(t => t.status === status)
 }
 
+const statusOrder = { TODO: 0, DOING: 1, DONE: 2 }
+const isStatusDisabled = (current, target) => {
+  if (!current || !target) return false
+  if (current === target) return true
+  if (current === 'DONE') return true
+  if (statusOrder[target] !== undefined && statusOrder[current] !== undefined && statusOrder[target] < statusOrder[current]) return true
+  if (current === 'DONE' && target === 'BLOCKED') return true
+  if (current === 'BLOCKED' && target === 'TODO') return true
+  return false
+}
+const handleChangeStatus = async (row, nextStatus) => {
+  if (isStatusDisabled(row.status, nextStatus)) return
+  try {
+    await updateTaskStatus(row.id, nextStatus)
+    ElMessage.success('状态已更新')
+    fetchTasks()
+  } catch (e) {}
+}
+
+const userOptions = ref([])
+const userLoading = ref(false)
+const searchUsers = async (name) => {
+  userLoading.value = true
+  try {
+    const res = await queryUserInfoByList({ name, page: 1, limit: 20 })
+    const list = res?.records || res?.data || res || []
+    userOptions.value = Array.isArray(list)
+      ? list.map(x => ({ id: x.id, name: x.name || x.username || x.nickName || '' }))
+      : []
+  } finally {
+    userLoading.value = false
+  }
+}
+
+const assignDialogVisible = ref(false)
+const assignRow = ref(null)
+const assignSelectedIds = ref([])
+const openAssign = (row) => {
+  assignRow.value = row
+  const ids = Array.isArray(row?.assigneeIds)
+    ? row.assigneeIds
+    : Array.isArray(row?.assignees)
+      ? row.assignees.map(a => a.id)
+      : []
+  assignSelectedIds.value = ids
+  assignDialogVisible.value = true
+}
+const submitAssign = async () => {
+  if (!assignRow.value) return
+  try {
+    await taskAssignee(assignRow.value.id, assignSelectedIds.value)
+    ElMessage.success('指派已更新')
+    assignDialogVisible.value = false
+    fetchTasks()
+  } catch (e) {}
+}
+
 /**
  * 打开新建弹窗
  */
@@ -284,9 +415,11 @@ const handleCreate = () => {
     id: null,
     projectId: queryParams.projectId,
     title: '',
-    priority: 3,
-    status: 'TODO',
-    deadline: null
+    description: '',
+    priority: null,
+    status: null,
+    deadline: null,
+    assigneeIds: []
   })
   dialogVisible.value = true
 }
@@ -314,11 +447,16 @@ const submitForm = async () => {
   try {
     if (dialogType.value === 'create') {
       // 创建任务时去掉 id 参数
-      const { id, ...createPayload } = form
-      await createTask(createPayload)
+      const { id, assigneeIds, ...createPayload } = form
+      const res = await createTask(createPayload)
+      const newId = res?.id ?? res?.data?.id ?? res?.taskId ?? res?.data?.taskId
+      if (newId && Array.isArray(assigneeIds) && assigneeIds.length > 0) {
+        await taskAssignee(newId, assigneeIds)
+      }
       ElMessage.success('创建成功')
     } else {
-      await updateTask(form)
+      const { assigneeIds, ...payload } = form
+      await updateTask(form.id, payload)
       ElMessage.success('更新成功')
     }
     dialogVisible.value = false
@@ -359,7 +497,7 @@ const getPriorityType = (val) => {
 }
 
 const getStatusType = (val) => {
-  const map = { TODO: 'info', DOING: 'primary', IN_PROGRESS: 'primary', DONE: 'success', BLOCKED: 'danger' }
+  const map = { TODO: 'primary', DOING: 'primary', IN_PROGRESS: 'primary', DONE: 'success', BLOCKED: 'danger' }
   return map[val] || ''
 }
 </script>
@@ -422,5 +560,19 @@ const getStatusType = (val) => {
   justify-content: center;
   align-items: center;
   min-height: 300px;
+}
+ 
+/* 操作列按钮间距与对齐 */
+.op-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+/* 移除默认按钮/下拉外边距，确保统一由 gap 控制 */
+.op-actions :deep(.el-button) {
+  margin: 0 !important;
+}
+.op-actions :deep(.el-dropdown) {
+  margin: 0 !important;
 }
 </style>
