@@ -40,29 +40,28 @@ export function createTask(data) {
 
 /**
  * 更新任务信息
- * @param {number} id - 任务ID
- * @param {Object} data - 更新数据
+ * @param {Object} data - 更新数据 (TaskDTO: { id, projectId, title, description, status, deadline, priority })
  * @returns {Promise}
  */
-export function updateTask(id, data) {
+export function updateTask(data) {
   return request({
-    url: `/task/tasks/${id}`, // 注意：如果你的后端是 PUT /tasks，请去掉 /{id}
-    method: 'put',
+    url: '/task/updatetask',
+    method: 'post',
     data
   })
 }
 
 /**
- * 更新任务状态（拖拽看板时使用）
- * @param {number} id - 任务ID
- * @param {string} status - 新状态
+ * 更新任务状态
+ * @param {number} taskId - 任务ID
+ * @param {string} newstatus - 新状态
  * @returns {Promise}
  */
-export function updateTaskStatus(id, status) {
+export function updateTaskStatus(taskId, newstatus) {
   return request({
-    url: `/task/tasks/${id}/status`,
-    method: 'put',
-    params: { status } // 假设后端接收 @RequestParam 或 @RequestBody，请根据实际调整
+    url: '/task/status',
+    method: 'post',
+    data: { taskId, newstatus }
   })
 }
 
@@ -84,5 +83,13 @@ export function taskAssignee(taskId, list) {
     url: '/task/taskAssignee',
     method: 'post',
     data: { taskId, list }
+  })
+}
+
+export function activateTask(taskId, newstatus) {
+  return request({
+    url: '/task/activateTask',
+    method: 'post',
+    data: { taskId, newstatus }
   })
 }

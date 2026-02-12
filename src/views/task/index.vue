@@ -49,22 +49,23 @@
           </template>
         </el-table-column>
         <el-table-column prop="deadline" label="截止日期" width="180" />
-        <el-table-column label="操作" width="240" align="center" fixed="right" :resizable="false">
+        <el-table-column label="操作" width="280" align="center" fixed="right" :resizable="false">
           <template #default="scope">
             <span class="op-actions">
-              <el-dropdown @command="cmd => handleChangeStatus(scope.row, cmd)">
-                <el-button size="small" :type="getStatusType(scope.row.status)">状态</el-button>
+              <el-dropdown @command="handleChangeStatus" :disabled="scope.row.status === 'DONE'">
+                <el-button size="small" :type="getStatusType(scope.row.status)" :disabled="scope.row.status === 'DONE'">状态</el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item :command="'TODO'" :disabled="isStatusDisabled(scope.row.status, 'TODO')">TODO</el-dropdown-item>
-                    <el-dropdown-item :command="'DOING'" :disabled="isStatusDisabled(scope.row.status, 'DOING')">DOING</el-dropdown-item>
-                    <el-dropdown-item :command="'DONE'" :disabled="isStatusDisabled(scope.row.status, 'DONE')">DONE</el-dropdown-item>
-                    <el-dropdown-item :command="'BLOCKED'" :disabled="isStatusDisabled(scope.row.status, 'BLOCKED')">BLOCKED</el-dropdown-item>
+                    <el-dropdown-item :command="{row: scope.row, status: 'TODO'}" :disabled="isStatusDisabled(scope.row.status, 'TODO')">TODO</el-dropdown-item>
+                    <el-dropdown-item :command="{row: scope.row, status: 'DOING'}" :disabled="isStatusDisabled(scope.row.status, 'DOING')">DOING</el-dropdown-item>
+                    <el-dropdown-item :command="{row: scope.row, status: 'DONE'}" :disabled="isStatusDisabled(scope.row.status, 'DONE')">DONE</el-dropdown-item>
+                    <el-dropdown-item :command="{row: scope.row, status: 'BLOCKED'}" :disabled="isStatusDisabled(scope.row.status, 'BLOCKED')">BLOCKED</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
-              <el-button link type="success" @click="openAssign(scope.row)">指派</el-button>
-              <el-button link type="primary" @click="handleEdit(scope.row)">编辑</el-button>
+              <el-button v-if="scope.row.status === 'DONE'" link type="warning" @click="handleActivate(scope.row)">激活</el-button>
+              <el-button link type="success" @click="openAssign(scope.row)" :disabled="scope.row.status === 'DONE'">指派</el-button>
+              <el-button link type="primary" @click="handleEdit(scope.row)" :disabled="scope.row.status === 'DONE'">编辑</el-button>
               <el-button link type="danger" @click="handleDelete(scope.row.id)">删除</el-button>
             </span>
           </template>
@@ -170,6 +171,7 @@
             :loading="userLoading"
             style="width: 100%"
             @visible-change="(val) => val && searchUsers('')"
+            @change="val => onAssigneeChange(val, form.assigneeIds)"
           >
             <el-option
               v-for="u in userOptions"
@@ -177,13 +179,14 @@
               :label="u.name"
               :value="u.id"
             />
+            <el-option v-if="userHasMore" :label="'加载更多...'" :value="MORE_TOKEN" />
           </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="submitForm">确定</el-button>
+          <el-button type="primary" @click="submitForm" :disabled="!isFormChanged">确定</el-button>
         </span>
       </template>
     </el-dialog>
@@ -200,6 +203,7 @@
             :loading="userLoading"
             style="width: 100%"
             @visible-change="(val) => val && searchUsers('')"
+            @change="val => onAssigneeChange(val, assignSelectedIds)"
           >
             <el-option
               v-for="u in userOptions"
@@ -207,13 +211,14 @@
               :label="u.name"
               :value="u.id"
             />
+            <el-option v-if="userHasMore" :label="'加载更多...'" :value="MORE_TOKEN" />
           </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="assignDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="submitAssign">确定</el-button>
+          <el-button type="primary" @click="submitAssign" :disabled="!isAssignChanged">确定</el-button>
         </span>
       </template>
     </el-dialog>
@@ -222,7 +227,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
-import { getTaskList, createTask, updateTask, deleteTask, taskAssignee } from '@/api/task'
+import { getTaskList, createTask, updateTask, deleteTask, taskAssignee, updateTaskStatus, activateTask } from '@/api/task'
 import { getProjectList } from '@/api/project'
 import { queryUserInfoByList } from '@/api/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -272,7 +277,7 @@ const form = reactive({
 
 // --- 状态常量（用于看板）---
 const statusList = [
-  { key: 'TODO', label: '待处理', type: 'primary' },
+  { key: 'TODO', label: '待处理', type: 'info' },
   { key: 'DOING', label: '进行中', type: 'primary' },
   { key: 'DONE', label: '已完成', type: 'success' },
   { key: 'BLOCKED', label: '阻塞', type: 'danger' }
@@ -348,51 +353,168 @@ const getTasksByStatus = (status) => {
   return taskList.value.filter(t => t.status === status)
 }
 
-const statusOrder = { TODO: 0, DOING: 1, DONE: 2 }
 const isStatusDisabled = (current, target) => {
-  if (!current || !target) return false
-  if (current === target) return true
   if (current === 'DONE') return true
-  if (statusOrder[target] !== undefined && statusOrder[current] !== undefined && statusOrder[target] < statusOrder[current]) return true
-  if (current === 'DONE' && target === 'BLOCKED') return true
-  if (current === 'BLOCKED' && target === 'TODO') return true
-  return false
+  if (!current || !target) return false
+  return current === target
 }
-const handleChangeStatus = async (row, nextStatus) => {
-  if (isStatusDisabled(row.status, nextStatus)) return
+const handleChangeStatus = async (command) => {
+  const { row, status } = command
+  
+  if (row.status === status) return 
+
   try {
-    await updateTaskStatus(row.id, nextStatus)
+    await updateTaskStatus(row.id, status)
     ElMessage.success('状态已更新')
     fetchTasks()
-  } catch (e) {}
+  } catch (e) {
+    console.error('Update status failed:', e)
+  }
+}
+
+const handleActivate = async (row) => {
+  try {
+    await activateTask(row.id, 'TODO')
+    ElMessage.success('任务已激活')
+    fetchTasks()
+  } catch (e) {
+    console.error('Activate task failed:', e)
+  }
 }
 
 const userOptions = ref([])
 const userLoading = ref(false)
+const MORE_TOKEN = '__MORE__'
+const userQuery = ref('')
+const userPage = ref(1)
+const userPageSize = 20
+const userHasMore = ref(false)
+
+const computeHasMore = (resList, res) => {
+  const total = res?.total ?? res?.data?.total
+  if (typeof total === 'number') {
+    return (userPage.value * userPageSize) < total
+  }
+  return Array.isArray(resList) && resList.length === userPageSize
+}
+
+const mapUsers = (list) => {
+  return Array.isArray(list)
+    ? list.map(x => ({ id: x.id, name: x.name || x.username || x.nickName || '' }))
+    : []
+}
+
 const searchUsers = async (name) => {
   userLoading.value = true
   try {
-    const res = await queryUserInfoByList({ name, page: 1, limit: 20 })
+    userQuery.value = name || ''
+    userPage.value = 1
+    const res = await queryUserInfoByList({ name: userQuery.value, page: userPage.value, limit: userPageSize })
     const list = res?.records || res?.data || res || []
-    userOptions.value = Array.isArray(list)
-      ? list.map(x => ({ id: x.id, name: x.name || x.username || x.nickName || '' }))
-      : []
+    
+    const newOpts = mapUsers(list)
+    
+    // 保留当前已选中的选项，防止因分页或搜索导致回显丢失
+    const currentSelectedIds = assignDialogVisible.value 
+      ? assignSelectedIds.value 
+      : (dialogVisible.value && dialogType.value === 'create' ? form.assigneeIds : [])
+      
+    const oldOptsMap = new Map(userOptions.value.map(u => [u.id, u]))
+    const preservedOpts = []
+    
+    if (Array.isArray(currentSelectedIds)) {
+      currentSelectedIds.forEach(id => {
+        if (oldOptsMap.has(id)) {
+          preservedOpts.push(oldOptsMap.get(id))
+        }
+      })
+    }
+    
+    const newIds = new Set(newOpts.map(u => u.id))
+    const uniquePreserved = preservedOpts.filter(u => !newIds.has(u.id))
+    
+    userOptions.value = [...uniquePreserved, ...newOpts]
+    userHasMore.value = computeHasMore(list, res)
   } finally {
     userLoading.value = false
   }
 }
 
+const loadMoreUsers = async () => {
+  if (!userHasMore.value) return
+  userLoading.value = true
+  try {
+    userPage.value += 1
+    const res = await queryUserInfoByList({ name: userQuery.value, page: userPage.value, limit: userPageSize })
+    const list = res?.records || res?.data || res || []
+    const more = mapUsers(list)
+    const existingIds = new Set(userOptions.value.map(u => u.id))
+    const merged = userOptions.value.concat(more.filter(u => !existingIds.has(u.id)))
+    userOptions.value = merged
+    userHasMore.value = computeHasMore(list, res)
+  } finally {
+    userLoading.value = false
+  }
+}
+
+const onAssigneeChange = async (val, modelArr) => {
+  if (Array.isArray(val) && val.includes(MORE_TOKEN)) {
+    const idx = modelArr.indexOf(MORE_TOKEN)
+    if (idx > -1) modelArr.splice(idx, 1)
+    await loadMoreUsers()
+  }
+}
+
+const hasMembers = (row) => Array.isArray(row?.members) && row.members.length > 0
+
 const assignDialogVisible = ref(false)
 const assignRow = ref(null)
 const assignSelectedIds = ref([])
+const originalAssignIds = ref([])
+
+const isAssignChanged = computed(() => {
+  if (!originalAssignIds.value) return true
+  const s1 = new Set(assignSelectedIds.value)
+  const s2 = new Set(originalAssignIds.value)
+  if (s1.size !== s2.size) return true
+  for (let id of s1) {
+    if (!s2.has(id)) return true
+  }
+  return false
+})
+
 const openAssign = (row) => {
   assignRow.value = row
-  const ids = Array.isArray(row?.assigneeIds)
-    ? row.assigneeIds
-    : Array.isArray(row?.assignees)
-      ? row.assignees.map(a => a.id)
-      : []
+  
+  let ids = []
+  let members = []
+  
+  // 优先从 members 或 assignees 获取对象以填充选项
+  if (Array.isArray(row?.members) && row.members.length > 0) {
+    members = row.members
+    ids = row.members.map(m => m.id)
+  } else if (Array.isArray(row?.assignees) && row.assignees.length > 0) {
+    members = row.assignees
+    ids = row.assignees.map(m => m.id)
+  } else if (Array.isArray(row?.assigneeIds)) {
+    ids = row.assigneeIds
+  }
+  
   assignSelectedIds.value = ids
+  originalAssignIds.value = [...ids] // 保存原始指派ID
+  
+  // 将已有成员预置到 userOptions，确保回显正常
+  if (members.length > 0) {
+    const existingIds = new Set(userOptions.value.map(u => u.id))
+    const newOpts = members
+      .filter(m => !existingIds.has(m.id))
+      .map(m => ({ id: m.id, name: m.name || m.username || m.nickName || '' }))
+    
+    if (newOpts.length > 0) {
+      userOptions.value = [...userOptions.value, ...newOpts]
+    }
+  }
+  
   assignDialogVisible.value = true
 }
 const submitAssign = async () => {
@@ -402,8 +524,18 @@ const submitAssign = async () => {
     ElMessage.success('指派已更新')
     assignDialogVisible.value = false
     fetchTasks()
-  } catch (e) {}
+  } catch (e) {
+    console.error('Assign failed:', e)
+  }
 }
+
+const isFormChanged = computed(() => {
+  if (dialogType.value === 'create') return true
+  if (!originalForm.value) return false
+  return JSON.stringify(form) !== JSON.stringify(originalForm.value)
+})
+
+const originalForm = ref(null)
 
 /**
  * 打开新建弹窗
@@ -421,6 +553,7 @@ const handleCreate = () => {
     deadline: null,
     assigneeIds: []
   })
+  originalForm.value = null
   dialogVisible.value = true
 }
 
@@ -431,6 +564,7 @@ const handleCreate = () => {
 const handleEdit = (row) => {
   dialogType.value = 'edit'
   Object.assign(form, row)
+  originalForm.value = JSON.parse(JSON.stringify(form))
   dialogVisible.value = true
 }
 
@@ -456,7 +590,7 @@ const submitForm = async () => {
       ElMessage.success('创建成功')
     } else {
       const { assigneeIds, ...payload } = form
-      await updateTask(form.id, payload)
+      await updateTask(payload)
       ElMessage.success('更新成功')
     }
     dialogVisible.value = false
@@ -497,7 +631,7 @@ const getPriorityType = (val) => {
 }
 
 const getStatusType = (val) => {
-  const map = { TODO: 'primary', DOING: 'primary', IN_PROGRESS: 'primary', DONE: 'success', BLOCKED: 'danger' }
+  const map = { TODO: 'info', DOING: 'primary', IN_PROGRESS: 'primary', DONE: 'success', BLOCKED: 'danger' }
   return map[val] || ''
 }
 </script>
