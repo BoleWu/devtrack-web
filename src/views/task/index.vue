@@ -1,7 +1,7 @@
 <template>
-  <div class="app-container">
+  <div class="app-container animate-fade-in-up">
     <!-- 顶部筛选栏 -->
-    <div class="filter-container">
+    <div class="filter-container glass-card">
       <el-form :inline="true" :model="queryParams" class="demo-form-inline">
         <el-form-item label="所属项目">
           <el-select v-model="queryParams.projectId" placeholder="选择项目" clearable @change="fetchTasks" style="width: 240px">
@@ -14,21 +14,29 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="fetchTasks">查询</el-button>
-          <el-button type="success" @click="handleCreate">新建任务</el-button>
+          <el-button type="primary" icon="Search" @click="fetchTasks">查询</el-button>
+          <el-button type="success" icon="Plus" @click="handleCreate">新建任务</el-button>
         </el-form-item>
         <el-form-item style="float: right">
           <el-radio-group v-model="viewMode">
-            <el-radio-button label="list">列表视图</el-radio-button>
-            <el-radio-button label="kanban">看板视图</el-radio-button>
+            <el-radio-button value="list">列表视图</el-radio-button>
+            <el-radio-button value="kanban">看板视图</el-radio-button>
           </el-radio-group>
         </el-form-item>
       </el-form>
     </div>
 
     <!-- 列表视图 -->
-    <div v-if="viewMode === 'list'" v-loading="loading">
-      <el-table ref="tableRef" :data="taskList" border style="width: 100%" @header-dragend="handleHeaderDragend">
+    <div v-if="viewMode === 'list'" v-loading="loading" class="table-container">
+      <el-table 
+        ref="tableRef" 
+        :data="taskList" 
+        style="width: 100%" 
+        class="glass-card" 
+        :header-cell-style="{ background: 'transparent' }"
+        :row-class-name="tableRowClassName"
+        @header-dragend="handleHeaderDragend"
+      >
         <el-table-column prop="title" label="任务标题" align="center"  min-width="200"  />
         <el-table-column prop="priority" label="优先级" align="center" width="100">
           <template #default="{ row }">
@@ -112,6 +120,7 @@
       :title="dialogType === 'create' ? '新建任务' : '编辑任务'"
       v-model="dialogVisible"
       width="50%"
+      append-to-body
     >
       <el-form :model="form" label-width="100px" ref="taskFormRef">
         <el-form-item label="所属项目" required>
@@ -191,7 +200,7 @@
       </template>
     </el-dialog>
     <!-- 任务指派弹窗 -->
-    <el-dialog v-model="assignDialogVisible" title="任务指派" width="420px">
+    <el-dialog v-model="assignDialogVisible" title="任务指派" width="420px" append-to-body>
       <el-form label-width="90px">
         <el-form-item label="选择成员">
           <el-select
@@ -231,11 +240,16 @@ import { getTaskList, createTask, updateTask, deleteTask, taskAssignee, updateTa
 import { getProjectList } from '@/api/project'
 import { queryUserInfoByList } from '@/api/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Plus } from '@element-plus/icons-vue'
 
 // --- 数据定义 ---
 const loading = ref(false)
 const taskList = ref([])
 const tableRef = ref(null)
+
+const tableRowClassName = ({ rowIndex }) => {
+  return 'animated-row'
+}
 
 const handleHeaderDragend = (newWidth, oldWidth, column, event) => {
   const delta = newWidth - oldWidth
@@ -637,8 +651,21 @@ const getStatusType = (val) => {
 </script>
 
 <style scoped>
-.app-container { padding: 20px; }
-.filter-container { margin-bottom: 20px; }
+.app-container { 
+  padding: 20px; 
+}
+
+.filter-container { 
+  margin-bottom: 20px; 
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.table-container {
+  overflow: hidden;
+}
 
 /* 看板样式 */
 .kanban-container {
@@ -646,45 +673,78 @@ const getStatusType = (val) => {
   gap: 20px;
   overflow-x: auto;
   padding-bottom: 20px;
+  height: calc(100vh - 180px); /* Adjust height */
 }
+
 .kanban-column {
   flex: 1;
   min-width: 300px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
-  padding: 10px;
+  background: rgba(255, 255, 255, 0.4); /* Glassy column */
+  backdrop-filter: blur(5px);
+  border-radius: 12px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
+
 .kanban-header {
-  font-weight: bold;
-  padding: 10px;
-  margin-bottom: 10px;
-  border-radius: 4px;
+  font-weight: 600;
+  padding: 12px;
+  margin-bottom: 15px;
+  border-radius: 8px;
   text-align: center;
   color: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
-.header-info { background-color: #909399; }
-.header-primary { background-color: #409eff; }
-.header-success { background-color: #67c23a; }
-.header-danger { background-color: #F56C6C; }
+
+.kanban-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+/* Custom scrollbar for kanban body */
+.kanban-body::-webkit-scrollbar {
+  width: 6px;
+}
+.kanban-body::-webkit-scrollbar-thumb {
+  background-color: #dcdfe6;
+  border-radius: 3px;
+}
+
+.header-info { background: linear-gradient(135deg, #909399 0%, #a6a9ad 100%); }
+.header-primary { background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%); }
+.header-success { background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%); }
+.header-danger { background: linear-gradient(135deg, #F56C6C 0%, #f78989 100%); }
 
 .kanban-card {
-  margin-bottom: 10px;
+  margin-bottom: 15px;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: all 0.3s ease;
+  border-radius: 8px !important;
+  animation: fadeInUp 0.5s ease-out forwards;
+  opacity: 0;
 }
+
 .kanban-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1) !important;
 }
+
 .card-title {
-  font-weight: bold;
-  margin-bottom: 8px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  font-size: 15px;
+  color: #303133;
 }
+
 .card-meta {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
-  color: #666;
+  color: #909399;
 }
 
 /* 空状态样式 */
@@ -709,4 +769,30 @@ const getStatusType = (val) => {
 .op-actions :deep(.el-dropdown) {
   margin: 0 !important;
 }
+
+/* Row Animation */
+:deep(.animated-row) {
+  animation: fadeInUp 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+:deep(.el-table__body tr) {
+  transition: all 0.3s ease;
+}
+
+:deep(.el-table__body tr:hover > td) {
+  background-color: rgba(64, 158, 255, 0.05) !important;
+}
+
+/* Stagger animation for rows using nth-child */
+:deep(.el-table__body tr:nth-child(1)) { animation-delay: 0.1s; }
+:deep(.el-table__body tr:nth-child(2)) { animation-delay: 0.15s; }
+:deep(.el-table__body tr:nth-child(3)) { animation-delay: 0.2s; }
+:deep(.el-table__body tr:nth-child(4)) { animation-delay: 0.25s; }
+:deep(.el-table__body tr:nth-child(5)) { animation-delay: 0.3s; }
+:deep(.el-table__body tr:nth-child(6)) { animation-delay: 0.35s; }
+:deep(.el-table__body tr:nth-child(7)) { animation-delay: 0.4s; }
+:deep(.el-table__body tr:nth-child(8)) { animation-delay: 0.45s; }
+:deep(.el-table__body tr:nth-child(9)) { animation-delay: 0.5s; }
+:deep(.el-table__body tr:nth-child(10)) { animation-delay: 0.55s; }
 </style>

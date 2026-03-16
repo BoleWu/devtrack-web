@@ -1,29 +1,36 @@
 <template>
     <div class="dashboard-container">
-        <el-row :gutter="20" class="mb-4">
+        <!-- Statistic Cards -->
+        <el-row :gutter="20" class="row-spacing">
             <el-col :span="6" v-for="(item, index) in statCards" :key="index">
-                <el-card shadow="hover" class="stat-card">
-                    <div class="stat-icon" :style="{ background: item.color }">
-                        <component :is="item.icon" />
-                    </div>
-                    <div class="stat-info">
-                        <div class="stat-title">{{ item.title }}</div>
-                        <div class="stat-value">
-                            <span v-if="loading">...</span>
-                            <span v-else>{{ item.value }}</span>
+                <el-card shadow="hover" class="stat-card glass-card hover-pulse" :body-style="{ padding: '0px' }" :style="{ animationDelay: `${index * 0.1}s` }">
+                    <div class="stat-content">
+                        <div class="stat-icon-wrapper" :style="{ background: item.color }">
+                            <el-icon class="stat-icon">
+                                <component :is="item.icon" />
+                            </el-icon>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-title">{{ item.title }}</div>
+                            <div class="stat-value">
+                                <span v-if="loading" class="loading-dots">...</span>
+                                <span v-else class="count-up">{{ item.value }}</span>
+                            </div>
                         </div>
                     </div>
                 </el-card>
             </el-col>
         </el-row>
 
-        <el-row :gutter="20" class="mb-4">
+        <!-- Charts Row -->
+        <el-row :gutter="20" class="row-spacing">
             <el-col :span="16">
-                <el-card shadow="hover" class="chart-card">
+                <el-card shadow="hover" class="chart-card glass-card" style="animation-delay: 0.4s">
                     <template #header>
                         <div class="card-header">
-                            <span>项目燃尽图 (Burn Down Chart)</span>
+                            <span class="header-title">项目燃尽图 (Burn Down Chart)</span>
                             <el-select v-model="selectedProject" placeholder="选择项目" size="small"
+                                class="project-select"
                                 @change="refreshCharts" @visible-change="(val) => val && loadProjects()">
                                 <el-option label="所有项目" :value="null" />
                                 <el-option v-for="item in projectOptions" :key="item.id" :label="item.name || item.projectName"
@@ -31,37 +38,43 @@
                             </el-select>
                         </div>
                     </template>
-                    <div ref="burnDownRef" style="height: 350px; width: 100%;"></div>
+                    <div ref="burnDownRef" class="chart-container"></div>
                 </el-card>
             </el-col>
 
             <el-col :span="8">
-                <el-card shadow="hover" class="chart-card">
+                <el-card shadow="hover" class="chart-card glass-card" style="animation-delay: 0.5s">
                     <template #header>
-                        <span>项目进度概览</span>
+                        <span class="header-title">项目进度概览</span>
                     </template>
-                    <div class="progress-list">
-                        <div v-for="proj in progressList" :key="proj.id" class="progress-item">
-                            <div class="progress-label">
-                                <span>{{ proj.projectName }}</span>
+                    <div class="progress-list custom-scrollbar">
+                        <div v-for="(proj, idx) in progressList" :key="proj.id" class="progress-item" :style="{ animationDelay: `${0.6 + idx * 0.1}s` }">
+                            <div class="progress-header">
+                                <span class="project-name">{{ proj.projectName }}</span>
                                 <span class="progress-text">{{ proj.completedTasks }}/{{ proj.totalTasks }} 任务</span>
                             </div>
-                            <el-progress :percentage="proj.progress" :status="getProgressStatus(proj.progress)"
-                                :stroke-width="10" />
+                            <el-progress 
+                                :percentage="proj.progress" 
+                                :status="getProgressStatus(proj.progress)"
+                                :stroke-width="12" 
+                                striped 
+                                striped-flow 
+                            />
                         </div>
-                        <el-empty v-if="progressList.length === 0" description="暂无数据" />
+                        <el-empty v-if="progressList.length === 0" description="暂无数据" :image-size="100" />
                     </div>
                 </el-card>
             </el-col>
         </el-row>
 
-        <el-row>
+        <!-- Gantt Chart -->
+        <el-row class="row-spacing">
             <el-col :span="24">
-                <el-card shadow="hover">
+                <el-card shadow="hover" class="glass-card" style="animation-delay: 0.6s">
                     <template #header>
-                        <span>任务甘特图 (Gantt Chart)</span>
+                        <span class="header-title">任务甘特图 (Gantt Chart)</span>
                     </template>
-                    <div ref="ganttRef" style="height: 400px; width: 100%;"></div>
+                    <div ref="ganttRef" class="gantt-container"></div>
                 </el-card>
             </el-col>
         </el-row>
@@ -91,408 +104,314 @@ let ganttChart = null
 
 // 统计卡片数据
 const statCards = reactive([
-    { title: '总项目数', value: 0, icon: 'Folder', color: '#409EFF' },
-    { title: '进行中项目', value: 0, icon: 'Timer', color: '#E6A23C' },
-    { title: '总任务数', value: 0, icon: 'List', color: '#67C23A' },
-    { title: '已完成任务', value: 0, icon: 'Check', color: '#F56C6C' }
+    { title: '总项目数', value: 0, icon: 'Folder', color: 'linear-gradient(135deg, #409EFF 0%, #36d1dc 100%)' },
+    { title: '进行中项目', value: 0, icon: 'Timer', color: 'linear-gradient(135deg, #E6A23C 0%, #f7ba2a 100%)' },
+    { title: '总任务数', value: 0, icon: 'List', color: 'linear-gradient(135deg, #67C23A 0%, #a4e786 100%)' },
+    { title: '已完成任务', value: 0, icon: 'Check', color: 'linear-gradient(135deg, #F56C6C 0%, #ff9a9e 100%)' }
 ])
 
 const progressList = ref([]) // 项目进度列表数据
 
-// --- 初始化与加载 ---
-onMounted(async () => {
-    window.addEventListener('resize', handleResize)
-    await loadProjects() // 先加载项目列表供下拉框使用
-    await loadData()
-})
+// --- 方法 ---
 
-onBeforeUnmount(() => {
-    window.removeEventListener('resize', handleResize)
-    if (burnDownChart) burnDownChart.dispose()
-    if (ganttChart) ganttChart.dispose()
-})
-
+// 获取项目列表（用于下拉框）
 const loadProjects = async () => {
     try {
-        const res = await getProjectList({ page: 1, limit: 1000 })
-        const list = res?.records || res?.data || res || []
-        projectOptions.value = Array.isArray(list) ? list : []
+        const res = await getProjectList({ page: 1, limit: 100 })
+        projectOptions.value = res.data || []
+        
+        // 如果当前没有选中项目且列表不为空，默认选中第一个
         if (!selectedProject.value && projectOptions.value.length > 0) {
             selectedProject.value = projectOptions.value[0].id
+            // 选中后刷新图表
+            refreshCharts()
         }
     } catch (e) {
-        console.error("加载项目列表失败", e)
-        projectOptions.value = []
+        console.error("加载项目失败", e)
     }
 }
 
-const loadData = async () => {
+// 获取统计卡片数据
+const loadStats = async () => {
     loading.value = true
     try {
-        // 1. 获取统计卡片数据
-        const statRes = await getDashboardStats()
-        if (statRes) {
-            statCards[0].value = statRes.totalProjects
-            statCards[1].value = statRes.activeProjects
-            statCards[2].value = statRes.totalTasks
-            statCards[3].value = statRes.completedTasks
+        const res = await getDashboardStats()
+        if (res) {
+            statCards[0].value = res.totalProjects || 0
+            statCards[1].value = res.activeProjects || 0
+            statCards[2].value = res.totalTasks || 0
+            statCards[3].value = res.completedTasks || 0
         }
-
-        // 2. 获取进度列表
-        const progRes = await getProjectProgress()
-        progressList.value = progRes || []
-
-        // 3. 渲染图表
-        await refreshCharts()
-    } catch (error) {
-        console.error("加载仪表盘数据失败", error)
+    } catch (e) {
+        console.error("加载统计失败", e)
     } finally {
         loading.value = false
     }
 }
 
-const refreshCharts = async () => {
-    // 使用 nextTick 确保 DOM 已经更新
-    await nextTick()
-    await initBurnDownChart()
-    await initGanttChart()
-}
-
-const parseDate = (dateStr) => {
-    if (!dateStr) return null;
-    try {
-        // 解决 Safari/Firefox 不支持 "yyyy-MM-dd HH:mm:ss" 的问题
-        // 将空格替换为 T (标准 ISO 格式)
-        const stdStr = dateStr.replace(' ', 'T');
-        const date = new Date(stdStr);
-        if (isNaN(date.getTime())) return null;
-        return date.getTime();
-    } catch (e) {
-        return null;
-    }
-}
-
-const renderGanttItem = (params, api) => {
-    // 取得数据索引
-    const categoryIndex = api.value(0); // Y轴索引 (任务名称)
-    const timeStart = api.value(1);     // 开始时间
-    const timeEnd = api.value(2);       // 结束时间
-
-    // 计算屏幕坐标
-    const start = api.coord([timeStart, categoryIndex]);
-    const end = api.coord([timeEnd, categoryIndex]);
-    
-    // 计算矩形高度 (barHeight)
-    // api.size([0, 1])[1] 获取Y轴一个类目的高度，我们取 60% 作为条形高度
-    const height = api.size([0, 1])[1] * 0.6;
-    
-    // 生成矩形形状
-    const rectShape = echarts.graphic.clipRectByRect({
-        x: start[0],
-        y: start[1] - height / 2, // 垂直居中
-        width: end[0] - start[0],
-        height: height
-    }, {
-        x: params.coordSys.x,
-        y: params.coordSys.y,
-        width: params.coordSys.width,
-        height: params.coordSys.height
-    });
-
-    return rectShape && {
-        type: 'rect',
-        transition: ['shape'],
-        shape: rectShape,
-        style: api.style() // 使用 data 中定义的 itemStyle
-    };
-}
-
-// --- 图表逻辑：燃尽图 ---
-const initBurnDownChart = async () => {
+// 获取并渲染燃尽图
+const loadBurnDownChart = async () => {
     if (!burnDownRef.value) return
-    if (!burnDownChart) burnDownChart = echarts.init(burnDownRef.value)
-    console.log("selectedProject.value:", selectedProject.value)
     try {
-        const data = await getBurnDownChart(selectedProject.value) || []
-        console.log("burnDownChart data:", data)
-        const dates = data.map(item => item.day)
-        const values = data.map(item => item.remain)
-
+        const res = await getBurnDownChart(selectedProject.value)
+        const dates = Array.isArray(res?.dates) ? res.dates : []
+        const values = Array.isArray(res?.values) ? res.values : []
+        
+        // 即使没有数据，也应该初始化图表以显示空坐标轴，或者显示暂无数据
+        if (!burnDownChart) {
+            burnDownChart = echarts.init(burnDownRef.value)
+        }
+        
         const option = {
             tooltip: { trigger: 'axis' },
             grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
             xAxis: { type: 'category', boundaryGap: false, data: dates },
-            yAxis: { type: 'value', name: '剩余任务' },
-            series: [
-                {
-                    name: '剩余任务',
-                    type: 'line',
-                    stack: 'Total',
-                    areaStyle: { opacity: 0.1 },
-                    smooth: true,
-                    data: values,
-                    itemStyle: { color: '#409EFF' }
-                }
-            ]
+            yAxis: { type: 'value' },
+            series: [{
+                name: '剩余任务',
+                type: 'line',
+                smooth: true,
+                areaStyle: {
+                    opacity: 0.3,
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: '#409EFF' },
+                        { offset: 1, color: '#fff' }
+                    ])
+                },
+                itemStyle: { color: '#409EFF' },
+                data: values
+            }]
         }
         burnDownChart.setOption(option)
     } catch (e) {
-        console.error("渲染燃尽图失败", e)
+        console.error("加载燃尽图失败", e)
     }
 }
 
-// 获取任务状态对应的颜色
-const getStatusColor = (status) => {
-    if (!status) return '#409EFF'; // 默认蓝色
-    const map = {
-        'TODO': '#409EFF',
-        'PLANNED': '#909399',
-        'DOING': '#409EFF',      // 进行中 - 蓝色
-        'IN_PROGRESS': '#409EFF',
-        'DONE': '#67C23A',       // 已完成 - 绿色
-        'COMPLETED': '#67C23A',
-        'BLOCKED': '#F56C6C',    // 阻塞 - 红色
-        'success': '#67C23A'
+// 获取项目进度列表
+const loadProgress = async () => {
+    try {
+        const res = await getProjectProgress()
+        progressList.value = Array.isArray(res) ? res : []
+    } catch (e) {
+        console.error("加载进度失败", e)
     }
-    return map[status] || '#409EFF';
 }
 
-// --- 关键修复：甘特图逻辑 ---
-// --- 图表逻辑：甘特图 (修复版) ---
-// --- 图表逻辑：甘特图 (Custom Series 终极版) ---
-const initGanttChart = async () => {
-    // 1. 容器检查
-    if (!ganttRef.value) return;
-    await nextTick();
-    if (!ganttChart) {
-        ganttChart = echarts.init(ganttRef.value);
-    }
-
-    // 2. 获取数据
-    const rawData = await getGanttData(selectedProject.value) || [];
-    
-    // 3. 数据预处理
-    const taskNames = [];
-    const chartData = [];
-    let minTime = Number.MAX_VALUE;
-    let maxTime = Number.MIN_VALUE;
-
-    rawData.forEach((item, index) => {
-        const name = item.name || item.taskName || `任务-${index}`;
-        const startTime = parseDate(item.start || item.startTime);
-        const endTime = parseDate(item.end || item.endTime);
-        const status = item.status || 'TODO';
-
-        // 过滤无效时间数据
-        if (!startTime) return;
+// 获取并渲染甘特图
+const loadGanttChart = async () => {
+    if (!ganttRef.value) return
+    try {
+        const res = await getGanttData(selectedProject.value)
+        const list = Array.isArray(res) ? res : []
         
-        // 如果没有结束时间，默认给 1 天时长，避免渲染失败
-        const finalEndTime = endTime || (startTime + 3600 * 1000 * 24);
+        const tasks = list.map(t => t.name)
+        const startTimes = list.map(t => t.start)
+        const durations = list.map(t => t.duration)
 
-        // 记录时间范围用于设置坐标轴
-        if (startTime < minTime) minTime = startTime;
-        if (finalEndTime > maxTime) maxTime = finalEndTime;
+        if (!ganttChart) {
+            ganttChart = echarts.init(ganttRef.value)
+        }
 
-        taskNames.push(name);
-        
-        // 构建 Custom Series 需要的数据格式
-        // value 数组含义: [Y轴索引, 开始时间, 结束时间, 持续时长]
-        chartData.push({
-            name: name,
-            value: [
-                index,           // 0: Y轴索引 (对应 taskNames)
-                startTime,       // 1: 开始时间
-                finalEndTime,    // 2: 结束时间
-                finalEndTime - startTime // 3: 时长
-            ],
-            itemStyle: {
-                color: getStatusColor(status),
-                borderRadius: 4
+        const option = {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' }
             },
-            // 保存原始数据供 Tooltip 使用
-            origin: { status, startTime, endTime: finalEndTime } 
-        });
-    });
-
-    // 空数据处理
-    if (chartData.length === 0) {
-        ganttChart.clear();
-        ganttChart.setOption({ 
-            title: { text: '暂无任务数据', left: 'center', top: 'center' } 
-        });
-        return;
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            xAxis: { type: 'value', name: '天数' },
+            yAxis: { type: 'category', data: tasks },
+            series: [
+                {
+                    name: '开始时间',
+                    type: 'bar',
+                    stack: 'total',
+                    itemStyle: { color: 'transparent', borderColor: 'transparent' },
+                    emphasis: { itemStyle: { color: 'transparent', borderColor: 'transparent' } },
+                    data: startTimes
+                },
+                {
+                    name: '持续时间',
+                    type: 'bar',
+                    stack: 'total',
+                    itemStyle: { color: '#67C23A', borderRadius: [0, 4, 4, 0] },
+                    data: durations
+                }
+            ]
+        }
+        ganttChart.setOption(option)
+    } catch (e) {
+        console.error("加载甘特图失败", e)
     }
-
-    // 4. 动态计算 X 轴边距 (前后各留 5% 空间)
-    const timeMargin = (maxTime - minTime) * 0.05;
-
-    // 5. 配置 Option
-    const option = {
-        title: {
-            text: `项目任务进度 (${chartData.length} 个任务)`,
-            left: 'center',
-            top: 10
-        },
-        tooltip: {
-            trigger: 'item', // Custom Series 必须用 item trigger
-            formatter: function (params) {
-                const data = params.data;
-                const origin = data.origin;
-                const sDate = new Date(data.value[1]).toLocaleDateString() + ' ' + new Date(data.value[1]).toLocaleTimeString();
-                const eDate = new Date(data.value[2]).toLocaleDateString();
-                const durationDays = (data.value[3] / (1000 * 60 * 60 * 24)).toFixed(1);
-                
-                return `
-                    <div style="font-weight:bold; margin-bottom:5px;">${data.name}</div>
-                    <div style="font-size:12px">
-                        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${params.color};margin-right:5px;"></span>
-                        状态: ${origin.status}
-                    </div>
-                    <div style="font-size:12px; margin-top:3px;">开始: ${sDate}</div>
-                    <div style="font-size:12px">结束: ${eDate}</div>
-                    <div style="font-size:12px">时长: ${durationDays} 天</div>
-                `;
-            }
-        },
-        grid: {
-            left: '3%',
-            right: '4%',
-            bottom: '3%',
-            containLabel: true
-        },
-        xAxis: {
-            type: 'time',
-            min: minTime - timeMargin,
-            max: maxTime + timeMargin,
-            axisLabel: {
-                formatter: '{yyyy}-{MM}-{dd}'
-            },
-            splitLine: { show: true, lineStyle: { type: 'dashed' } }
-        },
-        yAxis: {
-            type: 'category',
-            data: taskNames,
-            axisLabel: {
-                interval: 0, // 强制显示所有标签
-                width: 100,
-                overflow: 'truncate'
-            },
-            splitLine: { show: true, lineStyle: { color: '#eee' } }
-        },
-        series: [
-            {
-                type: 'custom',
-                renderItem: renderGanttItem, // 调用上面定义的渲染函数
-                itemStyle: {
-                    opacity: 0.8
-                },
-                encode: {
-                    x: [1, 2], // 将 value[1] 和 value[2] 映射到 X 轴 (用于缩放等)
-                    y: 0       // 将 value[0] 映射到 Y 轴
-                },
-                data: chartData
-            }
-        ]
-    };
-
-    ganttChart.setOption(option, true);
-    
-    // 强制重绘一次，解决某些情况下的渲染延迟
-    setTimeout(() => {
-        ganttChart.resize();
-    }, 200);
 }
 
+// 刷新所有图表 (当筛选条件变化时)
+const refreshCharts = () => {
+    loadBurnDownChart()
+    loadGanttChart()
+    loadProgress() // 进度通常是所有项目的，但也可能受筛选影响，视业务而定
+}
+
+// 辅助方法：进度条颜色状态
+const getProgressStatus = (percent) => {
+    if (percent === 100) return 'success'
+    if (percent > 80) return 'warning'
+    return ''
+}
+
+// 窗口大小变化时重绘图表
 const handleResize = () => {
     burnDownChart?.resize()
     ganttChart?.resize()
 }
 
-const getProgressStatus = (percentage) => {
-    if (percentage === 100) return 'success'
-    if (percentage < 50) return 'exception'
-    return ''
-}
+onMounted(async () => {
+    await nextTick()
+    loadStats()
+    loadProjects()
+    loadProgress()
+    loadBurnDownChart()
+    loadGanttChart()
+    window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+    window.removeEventListener('resize', handleResize)
+    burnDownChart?.dispose()
+    ganttChart?.dispose()
+})
 </script>
 
 <style scoped>
 .dashboard-container {
     padding: 20px;
-    background-color: #f0f2f5;
-    min-height: calc(100vh - 84px);
 }
 
-.mb-4 {
+.row-spacing {
     margin-bottom: 20px;
 }
 
-/* 统计卡片样式 */
 .stat-card {
-    display: flex;
-    align-items: center;
+    border-radius: 12px;
     border: none;
+    animation: fadeInUp 0.5s ease-out forwards;
+    /* Removed initial hidden state to prevent layout jumps if animation fails, 
+       but keeping animation. Keyframes should handle the 'from' state. */
 }
 
-.stat-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 8px;
+.stat-content {
+    display: flex;
+    align-items: center;
+    padding: 20px; /* Increased padding */
+}
+
+.stat-icon-wrapper {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-right: 16px;
-    color: white;
-    font-size: 24px;
+    margin-right: 20px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.stat-icon {
+    font-size: 28px;
+    color: #fff;
 }
 
 .stat-info {
-    display: flex;
-    flex-direction: column;
+    flex: 1;
+    overflow: hidden; /* Prevent text overflow */
 }
 
 .stat-title {
     font-size: 14px;
     color: #909399;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 
 .stat-value {
-    font-size: 24px;
+    font-size: 28px;
     font-weight: bold;
     color: #303133;
+    line-height: 1;
 }
 
 .chart-card {
-    height: 100%;
+    border-radius: 12px;
+    border: none;
+    animation: fadeInUp 0.5s ease-out forwards;
+    margin-bottom: 20px;
 }
 
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap; /* Allow wrapping on small screens */
+    gap: 10px;
 }
 
-/* 进度列表样式 */
-.progress-list {
+.header-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #303133;
+}
+
+.project-select {
+    width: 180px; /* Fixed width for consistency */
+}
+
+.chart-container, .gantt-container {
     height: 350px;
+    width: 100%;
+    min-height: 350px; /* Ensure height */
+}
+
+.gantt-container {
+    height: 450px; /* Increased height for Gantt */
+    min-height: 450px;
+}
+
+.progress-list {
+    height: 350px; /* Fixed height instead of max-height for alignment */
     overflow-y: auto;
     padding-right: 10px;
 }
 
 .progress-item {
     margin-bottom: 20px;
+    animation: fadeInUp 0.5s ease-out forwards;
 }
 
-.progress-label {
+.progress-header {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
     font-size: 14px;
+}
+
+.project-name {
+    font-weight: 500;
     color: #606266;
 }
 
 .progress-text {
     color: #909399;
     font-size: 12px;
+}
+
+/* Custom Scrollbar for progress list */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #dcdfe6;
+    border-radius: 3px;
 }
 </style>

@@ -2,7 +2,7 @@ import request from '@/utils/request'
 
 /**
  * 分页查询用户信息
- * @param {Object} data - 查询参数 { name, page, limit }
+ * @param {Object} data - 查询参数 { name, status, page, limit }
  * @returns {Promise}
  */
 export function queryUserInfoByList(data) {

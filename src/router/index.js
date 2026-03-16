@@ -32,6 +32,11 @@ const routes = [
         path: 'tasks',
         component: () => import('@/views/task/index.vue'),
         meta: { title: '任务管理' }
+      },
+      {
+        path: 'users',
+        component: () => import('@/views/user/index.vue'),
+        meta: { title: '用户管理' }
       }
     ]
   }

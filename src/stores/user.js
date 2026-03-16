@@ -31,7 +31,13 @@ export const useUserStore = defineStore('user', () => {
         try {
             const data = await login(loginForm) // 调用后端登录 API
             token.value = data.token
-            userInfo.value = { username: data.username, id: data.userId }
+            userInfo.value = { 
+                id: data.userId, 
+                username: data.username, 
+                name: data.name, 
+                email: data.email, 
+                phone: data.phone 
+            }
             
             // 持久化存储
             localStorage.setItem('token', data.token)

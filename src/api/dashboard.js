@@ -14,12 +14,12 @@ export function getDashboardStats() {
 
 /**
  * 获取燃尽图数据 (对应 List<BurnDownPointVO>)
- * @param {number|null} id - 项目ID，可选。若为空则查询所有项目
+ * @param {number|null} projectId - 项目ID，可选。若为空则查询所有项目
  * @returns {Promise}
  */
-export function getBurnDownChart(id) {
+export function getBurnDownChart(projectId) {
   const params = {}
-  if (id) params.id = id
+  if (projectId) params.projectId = projectId
   return request({
     url: '/dashboard/burn-down',
     method: 'get',
@@ -41,12 +41,12 @@ export function getProjectProgress() {
 
 /**
  * 获取甘特图数据 (对应 List<GanttVO>)
- * @param {number|null} id - 项目ID，可选
+ * @param {number|null} projectId - 项目ID，可选
  * @returns {Promise}
  */
-export function getGanttData(id) {
+export function getGanttData(projectId) {
   const params = {}
-  if (id) params.id = id
+  if (projectId) params.projectId = projectId
   return request({
     url: '/dashboard/gantt',
     method: 'get',

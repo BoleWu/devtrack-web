@@ -1,33 +1,44 @@
 <template>
-  <div class="project-page">
+  <div class="project-page animate-fade-in-up">
     <!-- 工具栏区域：包含搜索、状态筛选、新增和刷新按钮 -->
-    <div class="toolbar">
-      <!-- 搜索输入框 -->
-      <el-input
-        v-model="query.keyword"
-        placeholder="搜索项目"
-        clearable
-        class="toolbar-item"
-        @keyup.enter="handleSearch"
-        @clear="handleSearch"
-      />
-      <!-- 状态筛选下拉框 -->
-      <el-select
-        v-model="query.status"
-        placeholder="状态"
-        clearable
-        class="toolbar-item"
-      >
-        <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
-      </el-select>
-      <!-- 操作按钮 -->
-      <el-button type="primary" @click="openCreate">新增项目</el-button>
-      <el-button @click="fetchProjects">刷新</el-button>
+    <div class="toolbar glass-card">
+      <div class="toolbar-left">
+        <el-input
+          v-model="query.keyword"
+          placeholder="搜索项目..."
+          clearable
+          class="toolbar-item search-input"
+          prefix-icon="Search"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+        <el-select
+          v-model="query.status"
+          placeholder="状态"
+          clearable
+          class="toolbar-item status-select"
+        >
+          <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+      </div>
+      <div class="toolbar-right">
+        <el-button type="primary" icon="Plus" @click="openCreate" class="action-btn">新增项目</el-button>
+        <el-button icon="Refresh" @click="fetchProjects" circle class="action-btn" />
+      </div>
     </div>
 
     <!-- 项目列表表格 -->
-    <el-card shadow="never" class="table-card" :body-style="{ padding: '0px' }">
-      <el-table ref="tableRef" v-loading="loading" :data="filteredProjects" row-key="id" style="width: 100%" border @header-dragend="handleHeaderDragend">
+    <el-card shadow="hover" class="table-card glass-card" :body-style="{ padding: '0px' }">
+      <el-table 
+        ref="tableRef" 
+        v-loading="loading" 
+        :data="filteredProjects" 
+        row-key="id" 
+        style="width: 100%" 
+        :header-cell-style="{ background: 'transparent' }"
+        :row-class-name="tableRowClassName"
+        @header-dragend="handleHeaderDragend"
+      >
         <el-table-column prop="name" label="项目名称" min-width="200" show-overflow-tooltip resizable align="center" />
         <el-table-column label="状态" width="120" resizable align="center">
           <template #default="{ row }">
@@ -66,7 +77,7 @@
     </el-card>
 
     <!-- 项目详情抽屉 -->
-    <el-drawer v-model="detailVisible" title="项目详情" size="420px">
+    <el-drawer v-model="detailVisible" title="项目详情" size="420px" append-to-body>
       <div v-if="currentProject" class="detail">
         <div class="detail-header">
           <div class="detail-title">{{ currentProject.name }}</div>
@@ -101,6 +112,11 @@
                 :label="item.name"
                 :value="item.id"
               />
+              <el-option v-if="userHasMore" :value="'__LOAD_MORE__'" style="height: 30px; display: flex; justify-content: center; align-items: center; cursor: default;" disabled>
+                <el-button link type="primary" :loading="userLoading" @click.stop="loadMoreUsers">
+                  {{ userLoading ? '加载中...' : '加载更多...' }}
+                </el-button>
+              </el-option>
             </el-select>
             <el-button type="primary" @click="handleAddMembers">添加</el-button>
           </div>
@@ -129,7 +145,7 @@
     </el-drawer>
 
     <!-- 项目表单弹窗（新增/编辑） -->
-    <el-dialog v-model="formVisible" :title="formMode === 'create' ? '新增项目' : '编辑项目'" width="520px">
+    <el-dialog v-model="formVisible" :title="formMode === 'create' ? '新增项目' : '编辑项目'" width="520px" append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
         <el-form-item label="项目名称" prop="name">
           <el-input v-model="form.name" maxlength="50" show-word-limit />
@@ -152,17 +168,37 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createProject, deleteProject, getProjectList, updateProject } from '@/api/project'
 import { queryUserInfoByList } from '@/api/user'
 import { addListMember } from '@/api/member'
+import { Search, Plus, Refresh } from '@element-plus/icons-vue'
+
+// --- 无限滚动指令 v-loadmore ---
+const vLoadmore = {
+  mounted(el, binding) {
+    const selectDropdown = el.querySelector('.el-select-dropdown .el-select-dropdown__wrap')
+    if (selectDropdown) {
+      selectDropdown.addEventListener('scroll', () => {
+        const condition = selectDropdown.scrollHeight - selectDropdown.scrollTop <= selectDropdown.clientHeight + 1
+        if (condition) {
+          binding.value()
+        }
+      })
+    }
+  }
+}
 
 // --- 状态定义 ---
 const loading = ref(false) // 表格加载状态
 const saving = ref(false)  // 表单保存状态
 const projectsRaw = ref([]) // 原始项目列表数据
 const tableRef = ref(null) // 表格实例引用
+
+const tableRowClassName = ({ rowIndex }) => {
+  return 'animated-row'
+}
 
 // --- 表格列宽拖拽逻辑 ---
 // 实现邻居列联动拉伸：当拖拽某一列时，自动调整其右侧相邻列的宽度，以保持总宽度不变
@@ -335,25 +371,67 @@ const saveMembers = (projectId, list) => {
   localStorage.setItem(getMembersKey(projectId), JSON.stringify(list))
 }
 
+const userPage = ref(1)
+const userPageSize = 20
+const userHasMore = ref(false)
+const userQuery = ref('')
+
 // 远程搜索用户
 const searchUsers = async (query) => {
-  // 如果没有关键词，也默认查询前20条
+  userQuery.value = query || ''
+  userPage.value = 1
   userLoading.value = true
   try {
     const res = await queryUserInfoByList({
-      name: query,
-      page: 1,
-      limit: 20
+      name: userQuery.value,
+      page: userPage.value,
+      limit: userPageSize
     })
-    // 假设返回结构为 { data: [...], total: ... } 或直接是 PageInfoVO
     const list = res?.data || res?.records || []
     userOptions.value = list.map(u => ({
       id: u.id,
-      name: u.name || u.username || u.email || 'Unknown' // 兼容不同字段
+      name: u.name || u.username || u.email || 'Unknown'
     }))
+    
+    // 计算是否还有更多数据
+    const total = res?.total ?? res?.data?.total ?? 0
+    userHasMore.value = (userPage.value * userPageSize) < total
   } catch (e) {
     console.error('搜索用户失败:', e)
     userOptions.value = []
+    userHasMore.value = false
+  } finally {
+    userLoading.value = false
+  }
+}
+
+// 加载更多用户
+const loadMoreUsers = async () => {
+  if (userLoading.value || !userHasMore.value) return
+  
+  userLoading.value = true
+  try {
+    userPage.value += 1
+    const res = await queryUserInfoByList({
+      name: userQuery.value,
+      page: userPage.value,
+      limit: userPageSize
+    })
+    const list = res?.data || res?.records || []
+    const newOpts = list.map(u => ({
+      id: u.id,
+      name: u.name || u.username || u.email || 'Unknown'
+    }))
+    
+    // 去重合并
+    const existingIds = new Set(userOptions.value.map(u => u.id))
+    const uniqueNewOpts = newOpts.filter(u => !existingIds.has(u.id))
+    userOptions.value = [...userOptions.value, ...uniqueNewOpts]
+    
+    const total = res?.total ?? res?.data?.total ?? 0
+    userHasMore.value = (userPage.value * userPageSize) < total
+  } catch (e) {
+    console.error('加载更多用户失败:', e)
   } finally {
     userLoading.value = false
   }
@@ -590,22 +668,36 @@ const handleDelete = async (row) => {
 }
 
 .toolbar {
+  margin-bottom: 20px;
+  padding: 15px 20px;
   display: flex;
-  gap: 12px;
+  justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+}
+
+.toolbar-left {
+  display: flex;
+  gap: 15px;
 }
 
 .toolbar-item {
+  width: 200px;
+}
+
+.search-input {
   width: 240px;
 }
 
+.status-select {
+  width: 150px;
+}
+
 .table-card {
-  border: none;
+  overflow: hidden;
 }
 
 .pagination-container {
-  padding: 12px 20px;
+  padding: 20px;
   display: flex;
   justify-content: flex-end;
 }
@@ -660,4 +752,30 @@ const handleDelete = async (row) => {
   display: flex;
   gap: 12px;
 }
+
+/* Row Animation */
+:deep(.animated-row) {
+  animation: fadeInUp 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+:deep(.el-table__body tr) {
+  transition: all 0.3s ease;
+}
+
+:deep(.el-table__body tr:hover > td) {
+  background-color: rgba(64, 158, 255, 0.05) !important;
+}
+
+/* Stagger animation for rows using nth-child */
+:deep(.el-table__body tr:nth-child(1)) { animation-delay: 0.1s; }
+:deep(.el-table__body tr:nth-child(2)) { animation-delay: 0.15s; }
+:deep(.el-table__body tr:nth-child(3)) { animation-delay: 0.2s; }
+:deep(.el-table__body tr:nth-child(4)) { animation-delay: 0.25s; }
+:deep(.el-table__body tr:nth-child(5)) { animation-delay: 0.3s; }
+:deep(.el-table__body tr:nth-child(6)) { animation-delay: 0.35s; }
+:deep(.el-table__body tr:nth-child(7)) { animation-delay: 0.4s; }
+:deep(.el-table__body tr:nth-child(8)) { animation-delay: 0.45s; }
+:deep(.el-table__body tr:nth-child(9)) { animation-delay: 0.5s; }
+:deep(.el-table__body tr:nth-child(10)) { animation-delay: 0.55s; }
 </style>
