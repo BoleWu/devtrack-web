@@ -149,24 +149,62 @@ const loadStats = async () => {
     }
 }
 
+const toDateLabel = (v) => {
+    if (v == null) return ''
+    if (typeof v === 'number') {
+        try {
+            return new Date(v).toISOString().slice(0, 10)
+        } catch (_) {
+            return String(v)
+        }
+    }
+    return String(v)
+}
+
+const normalizeBurnDown = (res) => {
+    if (res && Array.isArray(res.dates) && Array.isArray(res.values)) {
+        return {
+            dates: res.dates.map(toDateLabel),
+            values: res.values.map((n) => Number(n) || 0)
+        }
+    }
+
+    const list = Array.isArray(res)
+        ? res
+        : (Array.isArray(res?.points) ? res.points : (Array.isArray(res?.records) ? res.records : []))
+
+    return {
+        dates: list.map((p) => toDateLabel(p?.date ?? p?.day ?? p?.time ?? p?.createTime ?? p?.x)),
+        values: list.map((p) => Number(p?.value ?? p?.remain ?? p?.remaining ?? p?.count ?? p?.y ?? 0) || 0)
+    }
+}
+
 // 获取并渲染燃尽图
 const loadBurnDownChart = async () => {
     if (!burnDownRef.value) return
     try {
         const res = await getBurnDownChart(selectedProject.value)
-        const dates = Array.isArray(res?.dates) ? res.dates : []
-        const values = Array.isArray(res?.values) ? res.values : []
+        const { dates, values } = normalizeBurnDown(res)
         
         // 即使没有数据，也应该初始化图表以显示空坐标轴，或者显示暂无数据
         if (!burnDownChart) {
             burnDownChart = echarts.init(burnDownRef.value)
         }
         
+        const isEmpty = values.length === 0
         const option = {
             tooltip: { trigger: 'axis' },
             grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
             xAxis: { type: 'category', boundaryGap: false, data: dates },
             yAxis: { type: 'value' },
+            graphic: isEmpty
+                ? {
+                      type: 'text',
+                      left: 'center',
+                      top: 'middle',
+                      style: { text: '暂无数据', fill: '#909399', fontSize: 14 }
+                  }
+                : undefined,
             series: [{
                 name: '剩余任务',
                 type: 'line',

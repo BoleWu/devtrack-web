@@ -76,7 +76,7 @@ const loading = ref(false)
 const userList = ref([])
 const query = reactive({
   name: '',
-  status: null
+  status: 0
 })
 const pagination = reactive({
   currentPage: 1,

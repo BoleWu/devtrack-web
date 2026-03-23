@@ -37,6 +37,16 @@ const routes = [
         path: 'users',
         component: () => import('@/views/user/index.vue'),
         meta: { title: '用户管理' }
+      },
+      {
+        path: 'roles',
+        component: () => import('@/views/role/index.vue'),
+        meta: { title: '角色管理' }
+      },
+      {
+        path: 'api-debug',
+        component: () => import('@/views/api-debug/index.vue'),
+        meta: { title: '接口调试' }
       }
     ]
   }
