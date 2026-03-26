@@ -133,6 +133,7 @@
         <div style="display: flex; gap: 10px;">
           <el-button type="primary" icon="Plus" @click="openAddMember">添加人员</el-button>
           <el-button type="danger" icon="Delete" plain :disabled="selectedMembers.length === 0" @click="handleBatchRemoveMembers">批量移除</el-button>
+          <el-button type="warning" icon="DeleteFilled" plain @click="handleRemoveAllMembers">一键移除所有</el-button>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
              <el-input 
@@ -147,7 +148,6 @@
              <el-button type="primary" @click="handleMemberSearch">搜索</el-button>
         </div>
       </div>
-      
       <el-table 
         :data="memberList" 
         v-loading="memberLoading" 
@@ -222,7 +222,7 @@
         border
         :header-cell-style="{ background: '#f8f9fa', color: '#606266' }"
       >
-        <el-table-column type="selection" width="55" :reserve-selection="true" align="center" />
+        <el-table-column type="selection" width="55" :reserve-selection="true" align="center" :selectable="checkSelectable" />
         <el-table-column prop="username" label="用户名" min-width="120" show-overflow-tooltip />
         <el-table-column prop="name" label="姓名" min-width="120" show-overflow-tooltip />
         <template #empty>
@@ -462,6 +462,57 @@ const handleBatchRemoveMembers = () => {
    }).catch(() => {})
  }
 
+const handleRemoveAllMembers = () => {
+  ElMessageBox.confirm(
+    `确认移除角色【${currentRole.value.name}】下的所有成员吗？此操作不可恢复！`,
+    '一键移除所有',
+    {
+      confirmButtonText: '确定移除',
+      cancelButtonText: '取消',
+      type: 'error'
+    }
+  ).then(async () => {
+    try {
+      // 先获取所有成员
+      let allMembers = []
+      let page = 1
+      const limit = 500
+      while (true) {
+        const res = await queryUserRoleList({
+          roleId: currentRole.value.id,
+          page,
+          limit
+        })
+        const list = res?.records || res?.data || []
+        allMembers = allMembers.concat(list)
+        if (list.length < limit || list.length === 0) break
+        page++
+      }
+      
+      if (allMembers.length === 0) {
+         ElMessage.warning('当前角色没有成员');
+         return;
+      }
+      
+      const allIds = allMembers.map(u => u.id);
+      for (let i = 0; i < allIds.length; i += 500) {
+        const batchIds = allIds.slice(i, i + 500);
+        await deleteUserRole({ 
+          roleId: currentRole.value.id, 
+          userIdList: batchIds
+        });
+      }
+      
+      ElMessage.success('一键移除所有成员成功');
+      selectedMembers.value = [];
+      fetchMembers();
+    } catch (error) {
+      console.error('一键移除所有成员失败', error);
+      ElMessage.error('一键移除所有成员失败');
+    }
+  }).catch(() => {});
+}
+
 const fetchMembers = async () => {
   memberLoading.value = true
   try {
@@ -514,7 +565,9 @@ const userOptionsPagination = reactive({
   total: 0
 })
 
-const openAddMember = () => {
+const allRoleMemberIds = ref(new Set())
+
+const openAddMember = async () => {
   userSelectVisible.value = true
   userSearchQuery.value = ''
   selectedUsers.value = []
@@ -522,25 +575,59 @@ const openAddMember = () => {
   nextTick(() => {
     userTableRef.value?.clearSelection()
   })
+  
+  // 预先获取当前角色下的所有成员ID
+  try {
+    allRoleMemberIds.value = new Set()
+    let page = 1
+    const limit = 500
+    while (true) {
+      const res = await queryUserRoleList({
+        roleId: currentRole.value.id,
+        page,
+        limit
+      })
+      const list = res?.records || res?.data || []
+      list.forEach(m => allRoleMemberIds.value.add(m.id))
+      if (list.length < limit || list.length === 0) break
+      page++
+    }
+  } catch(e) {
+    console.error('获取现有成员失败', e)
+  }
+  
   fetchUserOptions()
+}
+
+const checkSelectable = (row) => {
+  return !allRoleMemberIds.value.has(row.id)
 }
 
 const fetchUserOptions = async () => {
   userOptionsLoading.value = true
   try {
-    // 复用 queryUserInfoByList 查询所有用户
     const params = {
       name: userSearchQuery.value,
       page: userOptionsPagination.currentPage,
       limit: userOptionsPagination.pageSize,
-      status: 0 // 只查启用的用户
+      status: 0
     }
     const res = await queryUserInfoByList(params)
     if (res && (res.records || res.data)) {
       userOptions.value = res.records || res.data
       userOptionsPagination.total = res.total || 0
+      
+      nextTick(() => {
+        userOptions.value.forEach(row => {
+          if (allRoleMemberIds.value.has(row.id)) {
+            userTableRef.value?.toggleRowSelection(row, true)
+          }
+        })
+      })
+      
     } else {
       userOptions.value = []
+      userOptionsPagination.total = 0
     }
   } catch (error) {
     console.error('获取用户失败', error)
@@ -552,20 +639,39 @@ const fetchUserOptions = async () => {
 const handleSelectAll = async () => {
   selectAllLoading.value = true
   try {
-    const params = {
-      name: userSearchQuery.value,
-      page: 1,
-      limit: 10000,
-      status: 0
-    }
-    const res = await queryUserInfoByList(params)
-    if (res && (res.records || res.data)) {
-      const allUsers = res.records || res.data
-      allUsers.forEach(row => {
-        userTableRef.value?.toggleRowSelection(row, true)
+    let allUsers = []
+    let page = 1
+    const limit = 500
+    while (true) {
+      const res = await queryUserInfoByList({
+        name: userSearchQuery.value,
+        page,
+        limit,
+        status: 0
       })
-      ElMessage.success(`已选中 ${allUsers.length} 名搜索结果成员`)
+      const list = res?.records || res?.data || []
+      allUsers = allUsers.concat(list)
+      if (list.length < limit || list.length === 0) break
+      page++
     }
+    
+    // 过滤出未被添加的成员
+    const newUsersToAdd = allUsers.filter(u => !allRoleMemberIds.value.has(u.id))
+    
+    if (newUsersToAdd.length === 0) {
+      ElMessage.warning('当前搜索结果中没有未添加的人员')
+      return
+    }
+    
+    newUsersToAdd.forEach(row => {
+      const existingRow = userOptions.value.find(u => u.id === row.id)
+      if (existingRow) {
+         userTableRef.value?.toggleRowSelection(existingRow, true)
+      } else {
+         userTableRef.value?.toggleRowSelection(row, true)
+      }
+    })
+    ElMessage.success(`已选中 ${newUsersToAdd.length} 名未添加成员`)
   } catch (error) {
     console.error('一键全选失败', error)
     ElMessage.error('一键全选失败')
@@ -579,22 +685,33 @@ const handleSelectionChange = (val) => {
 }
 
 const confirmAddMembers = async () => {
-  if (selectedUsers.value.length === 0) {
-    ElMessage.warning('请选择人员')
+  // 从 selectedUsers 中剔除掉已经在角色中的成员，只提交真正需要新增的成员
+  const newSelectedUsers = selectedUsers.value.filter(u => !allRoleMemberIds.value.has(u.id))
+  
+  if (newSelectedUsers.length === 0) {
+    ElMessage.warning('请选择未添加的人员')
     return
   }
+  
   addMemberLoading.value = true
   try {
-    const userIdList = selectedUsers.value.map(u => u.id)
-    await addUserRole({
-      roleId: currentRole.value.id,
-      userIdList
-    })
+    const allIds = newSelectedUsers.map(u => u.id)
+    const batchSize = 500;
+    
+    for (let i = 0; i < allIds.length; i += batchSize) {
+      const batchIds = allIds.slice(i, i + batchSize);
+      await addUserRole({
+        roleId: currentRole.value.id,
+        userIdList: batchIds
+      })
+    }
+    
     ElMessage.success('添加成功')
     userSelectVisible.value = false
     fetchMembers()
   } catch (error) {
     console.error('添加失败', error)
+    ElMessage.error('部分或全部添加失败')
   } finally {
     addMemberLoading.value = false
   }

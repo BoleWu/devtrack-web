@@ -37,7 +37,19 @@
           </template>
         </el-table-column>
         <el-table-column key="col-username" prop="username" label="用户名" min-width="120" align="center" />
-
+        <el-table-column label="角色" min-width="180" align="center">
+          <template #default="{ row }">
+            <el-tag
+              v-for="role in row.roleList"
+              :key="role.id"
+              size="small"
+              class="role-tag"
+              effect="light"
+            >
+              {{ role.name }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="email" label="邮箱" min-width="180" align="center" />
         <el-table-column prop="phone" label="电话" min-width="120" align="center" />
         <el-table-column label="状态" width="100" align="center">
@@ -167,6 +179,10 @@ onMounted(() => {
 .user-name {
   font-weight: 600;
   color: #409EFF;
+}
+
+.role-tag {
+  margin: 2px;
 }
 
 .pagination-container {
