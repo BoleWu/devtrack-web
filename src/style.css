@@ -14,8 +14,8 @@ html, body {
   padding: 0;
   height: 100%;
   width: 100%;
-  overflow: hidden; /* Prevent outer scrollbar */
-  background-color: #f5f7fa; /* Light background for contrast */
+  overflow: hidden; /* 隐藏外部滚动条 */
+  background-color: #f5f7fa; /* 浅色背景以增加对比度 */
 }
 
 #app {
@@ -23,13 +23,13 @@ html, body {
   width: 100%;
 }
 
-/* --- Global Animations --- */
+/* --- 全局动画 --- */
 
-/* Fade In Up */
+/* 向上淡入 */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translate3d(0, 20px, 0);
+    transform: translate3d(0, 10px, 0);
   }
   to {
     opacity: 1;
@@ -38,10 +38,10 @@ html, body {
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 0.6s ease-out forwards;
+  animation: fadeInUp 0.3s ease-out forwards;
 }
 
-/* Pulse on Hover */
+/* 悬浮脉冲效果 */
 .hover-pulse {
   transition: transform var(--transition-speed) cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow var(--transition-speed);
 }
@@ -50,7 +50,7 @@ html, body {
   box-shadow: 0 15px 30px rgba(0,0,0,0.1);
 }
 
-/* Glassmorphism Utility */
+/* 玻璃拟态工具类 */
 .glass-card {
   background: var(--glass-bg);
   backdrop-filter: blur(10px);
@@ -60,23 +60,23 @@ html, body {
   box-shadow: var(--card-shadow);
 }
 
-/* Page Transition Classes (Vue Router) */
+/* 页面切换动画类 (Vue Router) */
 .page-enter-active,
 .page-leave-active {
-  transition: opacity 0.4s ease, transform 0.4s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .page-enter-from {
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(5px);
 }
 
 .page-leave-to {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateY(-5px);
 }
 
-/* Element Plus Overrides for Modern Look */
+/* 现代风格的 Element Plus 样式覆盖 */
 .el-button {
   border-radius: 8px !important;
   font-weight: 500 !important;
@@ -111,7 +111,7 @@ html, body {
   font-weight: 600;
 }
 
-/* Custom Scrollbar */
+/* 自定义滚动条 */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

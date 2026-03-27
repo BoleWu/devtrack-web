@@ -324,7 +324,7 @@ const handleStatusChange = async (row) => {
     await updateRoleStatus({ roleId: row.id, status: row.status })
     ElMessage.success('状态更新成功')
   } catch (error) {
-    row.status = row.status === 0 ? 1 : 0 // revert
+    row.status = row.status === 0 ? 1 : 0 // 恢复原状
     console.error('更新状态失败', error)
   }
 }
@@ -518,7 +518,7 @@ const fetchMembers = async () => {
   try {
     const params = {
       roleId: currentRole.value.id,
-      name: memberSearchName.value, // Added name parameter
+      name: memberSearchName.value, // 增加了 name 参数
       page: memberPagination.currentPage,
       limit: memberPagination.pageSize
     }
@@ -791,7 +791,7 @@ onMounted(() => {
   gap: 8px;
 }
 
-/* Dialog Custom Styles */
+/* 弹窗自定义样式 */
 :deep(.custom-dialog .el-dialog__header) {
   margin-right: 0;
   border-bottom: 1px solid #ebeef5;
@@ -808,9 +808,9 @@ onMounted(() => {
   margin-bottom: 15px;
 }
 
-/* Row Animation */
+/* 行动画 */
 :deep(.animated-row) {
-  animation: fadeInUp 0.5s ease-out forwards;
+  animation: fadeInUp 0.3s ease-out forwards;
   opacity: 0;
 }
 
@@ -822,15 +822,15 @@ onMounted(() => {
   background-color: rgba(64, 158, 255, 0.05) !important;
 }
 
-/* Stagger animation for rows using nth-child */
-:deep(.el-table__body tr:nth-child(1)) { animation-delay: 0.1s; }
-:deep(.el-table__body tr:nth-child(2)) { animation-delay: 0.15s; }
-:deep(.el-table__body tr:nth-child(3)) { animation-delay: 0.2s; }
-:deep(.el-table__body tr:nth-child(4)) { animation-delay: 0.25s; }
-:deep(.el-table__body tr:nth-child(5)) { animation-delay: 0.3s; }
-:deep(.el-table__body tr:nth-child(6)) { animation-delay: 0.35s; }
-:deep(.el-table__body tr:nth-child(7)) { animation-delay: 0.4s; }
-:deep(.el-table__body tr:nth-child(8)) { animation-delay: 0.45s; }
-:deep(.el-table__body tr:nth-child(9)) { animation-delay: 0.5s; }
-:deep(.el-table__body tr:nth-child(10)) { animation-delay: 0.55s; }
+/* 使用 nth-child 为行添加交错动画延迟 */
+:deep(.el-table__body tr:nth-child(1)) { animation-delay: 0.05s; }
+:deep(.el-table__body tr:nth-child(2)) { animation-delay: 0.1s; }
+:deep(.el-table__body tr:nth-child(3)) { animation-delay: 0.15s; }
+:deep(.el-table__body tr:nth-child(4)) { animation-delay: 0.2s; }
+:deep(.el-table__body tr:nth-child(5)) { animation-delay: 0.25s; }
+:deep(.el-table__body tr:nth-child(6)) { animation-delay: 0.3s; }
+:deep(.el-table__body tr:nth-child(7)) { animation-delay: 0.35s; }
+:deep(.el-table__body tr:nth-child(8)) { animation-delay: 0.4s; }
+:deep(.el-table__body tr:nth-child(9)) { animation-delay: 0.45s; }
+:deep(.el-table__body tr:nth-child(10)) { animation-delay: 0.5s; }
 </style>

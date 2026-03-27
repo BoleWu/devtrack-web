@@ -1,6 +1,6 @@
 <template>
   <div class="login-container">
-    <!-- Animated Background Shapes -->
+    <!-- 动画背景形状 -->
     <div class="shape shape-1"></div>
     <div class="shape shape-2"></div>
 
@@ -67,7 +67,7 @@ const router = useRouter()
 
 const toggleMode = () => {
   isLogin.value = !isLogin.value
-  // Reset form fields slightly if needed, or just keep them for UX
+  // 如果需要可以稍微重置表单字段，或者为了用户体验保留它们
 }
 
 /**
@@ -110,7 +110,7 @@ const onSubmit = async () => {
   overflow: hidden;
 }
 
-/* Background Shapes */
+/* 背景形状 */
 .shape {
   position: absolute;
   border-radius: 50%;
@@ -147,7 +147,7 @@ const onSubmit = async () => {
   width: 420px;
   z-index: 1;
   border: none;
-  background: rgba(255, 255, 255, 0.85); /* Slightly more opaque for readability */
+  background: rgba(255, 255, 255, 0.85); /* 稍微增加不透明度以提高可读性 */
 }
 
 .card-header {
@@ -188,7 +188,7 @@ const onSubmit = async () => {
   color: #606266;
 }
 
-/* Expand Animation for Register Fields */
+/* 注册字段的展开动画 */
 .expand-enter-active,
 .expand-leave-active {
   transition: all 0.4s ease;

@@ -1,6 +1,6 @@
 <template>
     <div class="dashboard-container">
-        <!-- Statistic Cards -->
+        <!-- 统计卡片 -->
         <el-row :gutter="20" class="row-spacing">
             <el-col :span="6" v-for="(item, index) in statCards" :key="index">
                 <el-card shadow="hover" class="stat-card glass-card hover-pulse" :body-style="{ padding: '0px' }" :style="{ animationDelay: `${index * 0.1}s` }">
@@ -22,7 +22,7 @@
             </el-col>
         </el-row>
 
-        <!-- Charts Row -->
+        <!-- 图表行 -->
         <el-row :gutter="20" class="row-spacing">
             <el-col :span="16">
                 <el-card shadow="hover" class="chart-card glass-card" style="animation-delay: 0.4s">
@@ -67,7 +67,7 @@
             </el-col>
         </el-row>
 
-        <!-- Gantt Chart -->
+        <!-- 甘特图 -->
         <el-row class="row-spacing">
             <el-col :span="24">
                 <el-card shadow="hover" class="glass-card" style="animation-delay: 0.6s">
@@ -236,6 +236,64 @@ const loadProgress = async () => {
     }
 }
 
+// 获取任务状态对应的颜色
+const getStatusColor = (status) => {
+    if (!status) return '#409EFF'; // 默认蓝色
+    const map = {
+        'TODO': '#409EFF',
+        'PLANNED': '#909399',
+        'DOING': '#409EFF',      // 进行中 - 蓝色
+        'IN_PROGRESS': '#409EFF',
+        'DONE': '#67C23A',       // 已完成 - 绿色
+        'COMPLETED': '#67C23A',
+        'BLOCKED': '#F56C6C',    // 阻塞 - 红色
+        'success': '#67C23A'
+    }
+    return map[status] || '#409EFF';
+}
+
+const parseDate = (dateStr) => {
+    if (!dateStr) return null;
+    try {
+        const stdStr = dateStr.replace(' ', 'T');
+        const date = new Date(stdStr);
+        if (isNaN(date.getTime())) return null;
+        return date.getTime();
+    } catch (e) {
+        return null;
+    }
+}
+
+const renderGanttItem = (params, api) => {
+    const categoryIndex = api.value(0);
+    const timeStart = api.value(1);
+    const timeEnd = api.value(2);
+
+    const start = api.coord([timeStart, categoryIndex]);
+    const end = api.coord([timeEnd, categoryIndex]);
+
+    const height = api.size([0, 1])[1] * 0.6;
+
+    const rectShape = echarts.graphic.clipRectByRect({
+        x: start[0],
+        y: start[1] - height / 2,
+        width: end[0] - start[0],
+        height: height
+    }, {
+        x: params.coordSys.x,
+        y: params.coordSys.y,
+        width: params.coordSys.width,
+        height: params.coordSys.height
+    });
+
+    return rectShape && {
+        type: 'rect',
+        transition: ['shape'],
+        shape: rectShape,
+        style: api.style()
+    };
+}
+
 // 获取并渲染甘特图
 const loadGanttChart = async () => {
     if (!ganttRef.value) return
@@ -243,41 +301,112 @@ const loadGanttChart = async () => {
         const res = await getGanttData(selectedProject.value)
         const list = Array.isArray(res) ? res : []
         
-        const tasks = list.map(t => t.name)
-        const startTimes = list.map(t => t.start)
-        const durations = list.map(t => t.duration)
-
         if (!ganttChart) {
             ganttChart = echarts.init(ganttRef.value)
         }
 
+        const taskNames = [];
+        const chartData = [];
+        let minTime = Number.MAX_VALUE;
+        let maxTime = Number.MIN_VALUE;
+
+        list.forEach((item, index) => {
+            const name = item.name || item.taskName || `任务-${index}`;
+            const startTime = parseDate(item.start || item.startTime);
+            const endTime = parseDate(item.end || item.endTime);
+            const status = item.status || 'TODO';
+
+            if (!startTime) return;
+
+            const finalEndTime = endTime || (startTime + 3600 * 1000 * 24);
+
+            if (startTime < minTime) minTime = startTime;
+            if (finalEndTime > maxTime) maxTime = finalEndTime;
+
+            taskNames.push(name);
+
+            chartData.push({
+                name: name,
+                value: [
+                    index,
+                    startTime,
+                    finalEndTime,
+                    finalEndTime - startTime
+                ],
+                itemStyle: {
+                    color: getStatusColor(status),
+                    borderRadius: 4
+                },
+                origin: { status, startTime, endTime: finalEndTime }
+            });
+        });
+
+        if (chartData.length === 0) {
+            ganttChart.clear();
+            ganttChart.setOption({ 
+                title: { text: '暂无任务数据', left: 'center', top: 'center', textStyle: { color: '#909399', fontSize: 14, fontWeight: 'normal' } } 
+            });
+            return;
+        }
+
+        const timeMargin = (maxTime - minTime) * 0.05;
+
         const option = {
             tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'shadow' }
+                trigger: 'item',
+                formatter: function (params) {
+                    const data = params.data;
+                    const origin = data.origin;
+                    const sDate = new Date(data.value[1]).toLocaleDateString() + ' ' + new Date(data.value[1]).toLocaleTimeString();
+                    const eDate = new Date(data.value[2]).toLocaleDateString();
+                    const durationDays = (data.value[3] / (1000 * 60 * 60 * 24)).toFixed(1);
+
+                    return `
+                        <div style="font-weight:bold; margin-bottom:5px;">${data.name}</div>
+                        <div style="font-size:12px">
+                            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${params.color};margin-right:5px;"></span>
+                            状态: ${origin.status}
+                        </div>
+                        <div style="font-size:12px; margin-top:3px;">开始: ${sDate}</div>
+                        <div style="font-size:12px">结束: ${eDate}</div>
+                        <div style="font-size:12px">时长: ${durationDays} 天</div>
+                    `;
+                }
             },
             grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-            xAxis: { type: 'value', name: '天数' },
-            yAxis: { type: 'category', data: tasks },
+            xAxis: { 
+                type: 'time',
+                min: minTime - timeMargin,
+                max: maxTime + timeMargin,
+                axisLabel: {
+                    formatter: '{yyyy}-{MM}-{dd}'
+                },
+                splitLine: { show: true, lineStyle: { type: 'dashed' } }
+            },
+            yAxis: { 
+                type: 'category', 
+                data: taskNames,
+                axisLabel: {
+                    interval: 0,
+                    width: 100,
+                    overflow: 'truncate'
+                },
+                splitLine: { show: true, lineStyle: { color: '#eee' } }
+            },
             series: [
                 {
-                    name: '开始时间',
-                    type: 'bar',
-                    stack: 'total',
-                    itemStyle: { color: 'transparent', borderColor: 'transparent' },
-                    emphasis: { itemStyle: { color: 'transparent', borderColor: 'transparent' } },
-                    data: startTimes
-                },
-                {
-                    name: '持续时间',
-                    type: 'bar',
-                    stack: 'total',
-                    itemStyle: { color: '#67C23A', borderRadius: [0, 4, 4, 0] },
-                    data: durations
+                    type: 'custom',
+                    renderItem: renderGanttItem,
+                    itemStyle: { opacity: 0.8 },
+                    encode: {
+                        x: [1, 2],
+                        y: 0
+                    },
+                    data: chartData
                 }
             ]
         }
-        ganttChart.setOption(option)
+        ganttChart.setOption(option, true)
     } catch (e) {
         console.error("加载甘特图失败", e)
     }
@@ -332,15 +461,14 @@ onBeforeUnmount(() => {
 .stat-card {
     border-radius: 12px;
     border: none;
-    animation: fadeInUp 0.5s ease-out forwards;
-    /* Removed initial hidden state to prevent layout jumps if animation fails, 
-       but keeping animation. Keyframes should handle the 'from' state. */
+    animation: fadeInUp 0.3s ease-out forwards;
+    /* 移除了初始隐藏状态，以防止动画失败时出现布局跳动，但保留了动画。关键帧应处理 'from' 状态。 */
 }
 
 .stat-content {
     display: flex;
     align-items: center;
-    padding: 20px; /* Increased padding */
+    padding: 20px; /* 增加内边距 */
 }
 
 .stat-icon-wrapper {
@@ -361,7 +489,7 @@ onBeforeUnmount(() => {
 
 .stat-info {
     flex: 1;
-    overflow: hidden; /* Prevent text overflow */
+    overflow: hidden; /* 防止文本溢出 */
 }
 
 .stat-title {
@@ -383,7 +511,7 @@ onBeforeUnmount(() => {
 .chart-card {
     border-radius: 12px;
     border: none;
-    animation: fadeInUp 0.5s ease-out forwards;
+    animation: fadeInUp 0.3s ease-out forwards;
     margin-bottom: 20px;
 }
 
@@ -391,7 +519,7 @@ onBeforeUnmount(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap; /* Allow wrapping on small screens */
+    flex-wrap: wrap; /* 在小屏幕上允许换行 */
     gap: 10px;
 }
 
@@ -402,30 +530,38 @@ onBeforeUnmount(() => {
 }
 
 .project-select {
-    width: 180px; /* Fixed width for consistency */
+    width: 180px; /* 固定宽度以保持一致性 */
 }
 
 .chart-container, .gantt-container {
     height: 350px;
     width: 100%;
-    min-height: 350px; /* Ensure height */
+    min-height: 350px; /* 确保高度 */
 }
 
 .gantt-container {
-    height: 450px; /* Increased height for Gantt */
+    height: 450px; /* 增加甘特图的高度 */
     min-height: 450px;
 }
 
 .progress-list {
-    height: 350px; /* Fixed height instead of max-height for alignment */
+    height: 350px; /* 使用固定高度而不是最大高度以对齐 */
     overflow-y: auto;
     padding-right: 10px;
 }
 
 .progress-item {
     margin-bottom: 20px;
-    animation: fadeInUp 0.5s ease-out forwards;
+    animation: fadeInUp 0.3s ease-out forwards;
 }
+
+/* 进度项的交错动画 */
+.progress-item:nth-child(1) { animation-delay: 0.05s !important; }
+.progress-item:nth-child(2) { animation-delay: 0.1s !important; }
+.progress-item:nth-child(3) { animation-delay: 0.15s !important; }
+.progress-item:nth-child(4) { animation-delay: 0.2s !important; }
+.progress-item:nth-child(5) { animation-delay: 0.25s !important; }
+.progress-item:nth-child(6) { animation-delay: 0.3s !important; }
 
 .progress-header {
     display: flex;
@@ -444,7 +580,7 @@ onBeforeUnmount(() => {
     font-size: 12px;
 }
 
-/* Custom Scrollbar for progress list */
+/* 进度列表的自定义滚动条 */
 .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
 }

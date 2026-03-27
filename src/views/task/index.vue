@@ -300,7 +300,6 @@ const statusList = [
 // --- 初始化 ---
 onMounted(async () => {
   await loadProjects()
-  fetchTasks()
 })
 
 /**
@@ -673,13 +672,13 @@ const getStatusType = (val) => {
   gap: 20px;
   overflow-x: auto;
   padding-bottom: 20px;
-  height: calc(100vh - 180px); /* Adjust height */
+  height: calc(100vh - 180px); /* 调整高度 */
 }
 
 .kanban-column {
   flex: 1;
   min-width: 300px;
-  background: rgba(255, 255, 255, 0.4); /* Glassy column */
+  background: rgba(255, 255, 255, 0.4); /* 玻璃拟态列 */
   backdrop-filter: blur(5px);
   border-radius: 12px;
   padding: 15px;
@@ -704,7 +703,7 @@ const getStatusType = (val) => {
   padding-right: 5px;
 }
 
-/* Custom scrollbar for kanban body */
+/* 看板主体自定义滚动条 */
 .kanban-body::-webkit-scrollbar {
   width: 6px;
 }
@@ -721,9 +720,9 @@ const getStatusType = (val) => {
 .kanban-card {
   margin-bottom: 15px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   border-radius: 8px !important;
-  animation: fadeInUp 0.5s ease-out forwards;
+  animation: fadeInUp 0.3s ease-out forwards;
   opacity: 0;
 }
 
@@ -770,9 +769,9 @@ const getStatusType = (val) => {
   margin: 0 !important;
 }
 
-/* Row Animation */
+/* 行动画 */
 :deep(.animated-row) {
-  animation: fadeInUp 0.5s ease-out forwards;
+  animation: fadeInUp 0.3s ease-out forwards;
   opacity: 0;
 }
 
@@ -784,15 +783,15 @@ const getStatusType = (val) => {
   background-color: rgba(64, 158, 255, 0.05) !important;
 }
 
-/* Stagger animation for rows using nth-child */
-:deep(.el-table__body tr:nth-child(1)) { animation-delay: 0.1s; }
-:deep(.el-table__body tr:nth-child(2)) { animation-delay: 0.15s; }
-:deep(.el-table__body tr:nth-child(3)) { animation-delay: 0.2s; }
-:deep(.el-table__body tr:nth-child(4)) { animation-delay: 0.25s; }
-:deep(.el-table__body tr:nth-child(5)) { animation-delay: 0.3s; }
-:deep(.el-table__body tr:nth-child(6)) { animation-delay: 0.35s; }
-:deep(.el-table__body tr:nth-child(7)) { animation-delay: 0.4s; }
-:deep(.el-table__body tr:nth-child(8)) { animation-delay: 0.45s; }
-:deep(.el-table__body tr:nth-child(9)) { animation-delay: 0.5s; }
-:deep(.el-table__body tr:nth-child(10)) { animation-delay: 0.55s; }
+/* 使用 nth-child 为行添加交错动画延迟 */
+:deep(.el-table__body tr:nth-child(1)) { animation-delay: 0.05s; }
+:deep(.el-table__body tr:nth-child(2)) { animation-delay: 0.1s; }
+:deep(.el-table__body tr:nth-child(3)) { animation-delay: 0.15s; }
+:deep(.el-table__body tr:nth-child(4)) { animation-delay: 0.2s; }
+:deep(.el-table__body tr:nth-child(5)) { animation-delay: 0.25s; }
+:deep(.el-table__body tr:nth-child(6)) { animation-delay: 0.3s; }
+:deep(.el-table__body tr:nth-child(7)) { animation-delay: 0.35s; }
+:deep(.el-table__body tr:nth-child(8)) { animation-delay: 0.4s; }
+:deep(.el-table__body tr:nth-child(9)) { animation-delay: 0.45s; }
+:deep(.el-table__body tr:nth-child(10)) { animation-delay: 0.5s; }
 </style>

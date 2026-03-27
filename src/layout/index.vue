@@ -43,7 +43,7 @@
         <el-container class="main-container">
             <el-header class="glass-header">
                 <div class="header-left">
-                    <!-- Breadcrumb or Title could go here -->
+                    <!-- 这里可以放置面包屑或标题 -->
                     <span class="page-title">{{ $route.meta.title || 'DevTrack' }}</span>
                 </div>
                 <el-dropdown trigger="click">
@@ -96,7 +96,7 @@ const logout = () => {
 }
 
 .aside-menu {
-    background: #304156; /* Fallback */
+    background: #304156; /* 回退样式 */
     background: linear-gradient(180deg, #304156 0%, #1f2d3d 100%);
     color: #fff;
     transition: width 0.3s;
@@ -164,7 +164,7 @@ const logout = () => {
     position: relative;
 }
 
-/* Glass Header */
+/* 玻璃拟态头部 */
 .glass-header {
     background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(10px);
@@ -216,7 +216,7 @@ const logout = () => {
     overflow-y: auto;
 }
 
-/* Page Transition */
+/* 页面切换动画 */
 .page-enter-active,
 .page-leave-active {
     transition: opacity 0.3s ease, transform 0.3s ease;
