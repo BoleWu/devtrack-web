@@ -60,8 +60,8 @@
         <el-table-column label="操作" width="280" align="center" fixed="right" :resizable="false">
           <template #default="scope">
             <span class="op-actions">
-              <el-dropdown @command="handleChangeStatus" :disabled="scope.row.status === 'DONE'">
-                <el-button size="small" :type="getStatusType(scope.row.status)" :disabled="scope.row.status === 'DONE'">状态</el-button>
+              <el-dropdown v-if="scope.row.status !== 'DONE'" @command="handleChangeStatus">
+                <el-button size="small" :type="getStatusType(scope.row.status)">状态</el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item :command="{row: scope.row, status: 'TODO'}" :disabled="isStatusDisabled(scope.row.status, 'TODO')">TODO</el-dropdown-item>
@@ -72,8 +72,9 @@
                 </template>
               </el-dropdown>
               <el-button v-if="scope.row.status === 'DONE'" link type="warning" @click="handleActivate(scope.row)">激活</el-button>
-              <el-button link type="success" @click="openAssign(scope.row)" :disabled="scope.row.status === 'DONE'">指派</el-button>
-              <el-button link type="primary" @click="handleEdit(scope.row)" :disabled="scope.row.status === 'DONE'">编辑</el-button>
+              <el-button v-if="scope.row.status !== 'DONE'" link type="success" @click="openAssign(scope.row)">指派</el-button>
+              <el-button v-if="scope.row.status !== 'DONE'" link type="primary" @click="handleEdit(scope.row)">编辑</el-button>
+              <el-button link type="primary" v-if="scope.row.status === 'DONE'" @click="handleView(scope.row)">详情</el-button>
               <el-button link type="danger" @click="handleDelete(scope.row.id)">删除</el-button>
             </span>
           </template>
@@ -102,7 +103,7 @@
               :key="task.id" 
               class="kanban-card" 
               shadow="hover"
-              @click="handleEdit(task)"
+              @click="task.status === 'DONE' ? handleView(task) : handleEdit(task)"
             >
               <div class="card-title">{{ task.title }}</div>
               <div class="card-meta">
@@ -115,14 +116,14 @@
       </template>
     </div>
 
-    <!-- 任务编辑/新建弹窗 -->
+    <!-- 任务编辑/新建/查看弹窗 -->
     <el-dialog
-      :title="dialogType === 'create' ? '新建任务' : '编辑任务'"
+      :title="dialogType === 'create' ? '新建任务' : (dialogType === 'view' ? '任务详情' : '编辑任务')"
       v-model="dialogVisible"
       width="50%"
       append-to-body
     >
-      <el-form :model="form" label-width="100px" ref="taskFormRef">
+      <el-form :model="form" label-width="100px" ref="taskFormRef" :disabled="dialogType === 'view'">
         <el-form-item label="所属项目" required>
           <el-select v-model="form.projectId" placeholder="请选择项目" style="width: 100%" :disabled="dialogType === 'edit'">
             <el-option
@@ -194,8 +195,8 @@
       </el-form>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="submitForm" :disabled="!isFormChanged">确定</el-button>
+          <el-button @click="dialogVisible = false">{{ dialogType === 'view' ? '关闭' : '取消' }}</el-button>
+          <el-button v-if="dialogType !== 'view'" type="primary" @click="submitForm" :disabled="!isFormChanged">确定</el-button>
         </span>
       </template>
     </el-dialog>
@@ -277,7 +278,7 @@ const queryParams = reactive({
 
 // --- 弹窗控制 ---
 const dialogVisible = ref(false)
-const dialogType = ref('create') // 'create' | 'edit'
+const dialogType = ref('create') // 'create' | 'edit' | 'view'
 const form = reactive({
   id: null,
   projectId: null,
@@ -576,7 +577,30 @@ const handleCreate = () => {
  */
 const handleEdit = (row) => {
   dialogType.value = 'edit'
-  Object.assign(form, row)
+  Object.assign(form, {
+    id: row.id,
+    projectId: row.projectId,
+    title: row.title,
+    description: row.description,
+    priority: row.priority,
+    status: row.status,
+    deadline: row.deadline
+  })
+  originalForm.value = JSON.parse(JSON.stringify(form))
+  dialogVisible.value = true
+}
+
+const handleView = (row) => {
+  dialogType.value = 'view'
+  Object.assign(form, {
+    id: row.id,
+    projectId: row.projectId,
+    title: row.title,
+    description: row.description,
+    priority: row.priority,
+    status: row.status,
+    deadline: row.deadline
+  })
   originalForm.value = JSON.parse(JSON.stringify(form))
   dialogVisible.value = true
 }

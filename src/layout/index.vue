@@ -33,6 +33,10 @@
                     <el-icon><Avatar /></el-icon>
                     <span>角色管理</span>
                 </el-menu-item>
+                <el-menu-item index="/permissions">
+                    <el-icon><Key /></el-icon>
+                    <span>接口管理</span>
+                </el-menu-item>
                 <el-menu-item index="/api-debug">
                     <el-icon><Setting /></el-icon>
                     <span>接口调试</span>
@@ -74,7 +78,7 @@
 <script setup>
 import { useUserStore } from '@/stores/user'
 import { useRouter, useRoute } from 'vue-router'
-import { Odometer, Folder, ArrowDown, List, User, Setting, Avatar } from '@element-plus/icons-vue'
+import { Odometer, Folder, ArrowDown, List, User, Setting, Avatar, Key } from '@element-plus/icons-vue'
 
 const userStore = useUserStore()
 const router = useRouter()

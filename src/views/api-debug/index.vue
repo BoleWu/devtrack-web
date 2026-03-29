@@ -20,7 +20,7 @@
             </el-form-item>
 
             <el-form-item label="接口地址">
-              <el-input v-model="form.url" placeholder="/dashboard/stats 或 https://example.com/api/xxx" clearable />
+              <el-input v-model="form.url" placeholder="/api/ 或 https://example.com/api/xxx" clearable />
             </el-form-item>
 
             <el-form-item :label="paramLabel">
@@ -75,7 +75,7 @@ const lastMeta = ref(null)
 
 const form = reactive({
   method: 'get',
-  url: '/dashboard/stats',
+  url: '/api/',
   payloadText: '{}'
 })
 
@@ -193,13 +193,31 @@ const clearAll = () => {
   lastMeta.value = null
 }
 
-const copyResponse = async () => {
+const copyResponse = () => {
   if (!responseText.value) return
+  // 创建一个临时的 textarea 元素来实现复制
+  const textarea = document.createElement('textarea')
+  textarea.value = responseText.value
+  // 将 textarea 添加到文档中（不可见）
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  
   try {
-    await navigator.clipboard.writeText(responseText.value)
-    ElMessage.success('已复制')
-  } catch (_) {
+    textarea.select()
+    // 执行复制命令
+    const successful = document.execCommand('copy')
+    if (successful) {
+      ElMessage.success('已复制')
+    } else {
+      ElMessage.error('复制失败')
+    }
+  } catch (err) {
+    console.error('复制发生错误:', err)
     ElMessage.error('复制失败')
+  } finally {
+    // 移除临时的 textarea
+    document.body.removeChild(textarea)
   }
 }
 </script>

@@ -44,6 +44,11 @@ const routes = [
         meta: { title: '角色管理' }
       },
       {
+        path: 'permissions',
+        component: () => import('@/views/permission/index.vue'),
+        meta: { title: '接口管理' }
+      },
+      {
         path: 'api-debug',
         component: () => import('@/views/api-debug/index.vue'),
         meta: { title: '接口调试' }

@@ -50,10 +50,11 @@
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="160" align="center" />
-        <el-table-column label="操作" width="200" align="center" fixed="right">
+        <el-table-column label="操作" width="280" align="center" fixed="right">
           <template #default="{ row }">
             <div class="op-actions">
               <el-button link type="primary" @click="openMembers(row)">成员管理</el-button>
+              <el-button link type="primary" @click="openPermissions(row)">接口权限</el-button>
               <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
               <el-popconfirm title="确认删除该角色吗？" @confirm="handleDelete(row)">
                 <template #reference>
@@ -254,6 +255,82 @@
       </template>
     </el-dialog>
 
+    <!-- 接口权限管理弹窗 -->
+    <el-dialog
+      v-model="permissionDialogVisible"
+      title="接口权限管理"
+      width="850px"
+      append-to-body
+      destroy-on-close
+      class="custom-dialog"
+    >
+      <div class="dialog-header-info">
+        <el-alert
+          :title="`正在管理角色【${currentRole?.name || ''}】的接口权限`"
+          type="info"
+          show-icon
+          :closable="false"
+          class="role-info-alert"
+        />
+      </div>
+      <div class="member-toolbar" style="margin-top: 15px;">
+        <div style="display: flex; gap: 10px;">
+          <el-button type="primary" icon="Plus" :disabled="permissionList.length === 0" @click="handleAddAllPermissions" :loading="permissionLoadingBtn">添加本页全部</el-button>
+          <el-button type="danger" icon="Delete" plain :disabled="permissionList.length === 0" @click="handleDeleteAllPermissions" :loading="permissionLoadingBtn">删除本页全部</el-button>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <el-input 
+            v-model="permissionSearchName" 
+            placeholder="搜索权限名称..." 
+            clearable 
+            style="width: 240px;" 
+            prefix-icon="Search"
+            @keyup.enter="handlePermissionSearch" 
+            @clear="handlePermissionSearch" 
+          />
+          <el-button type="primary" @click="handlePermissionSearch">搜索</el-button>
+        </div>
+      </div>
+      <el-table 
+        ref="permissionTableRef"
+        :data="permissionList" 
+        v-loading="permissionLoading" 
+        row-key="id"
+        style="width: 100%" 
+        height="400" 
+        @select="handlePermissionSelect"
+        @select-all="handlePermissionSelectAll"
+        stripe
+        border
+        :header-cell-style="{ background: '#f8f9fa', color: '#606266', textAlign: 'center' }"
+      >
+        <el-table-column type="selection" width="55" align="center" reserve-selection />
+        <el-table-column prop="name" label="权限名称" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="code" label="权限编码" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="path" label="接口路径" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="method" label="请求方式" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.method === 'GET' ? 'success' : (row.method === 'POST' ? 'warning' : 'info')">{{ row.method || 'ALL' }}</el-tag>
+          </template>
+        </el-table-column>
+        <template #empty>
+          <el-empty description="暂无权限数据" :image-size="80" />
+        </template>
+      </el-table>
+      <div class="dialog-pagination">
+         <el-pagination 
+          v-model:current-page="permissionPagination.currentPage" 
+          v-model:page-size="permissionPagination.pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="permissionPagination.total" 
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+          @size-change="fetchPermissions"
+          @current-change="fetchPermissions" 
+        />
+      </div>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -262,6 +339,8 @@ import { ref, reactive, onMounted, nextTick } from 'vue'
 import { queryRoleByList, createRole, updateRole, updateRoleStatus, deleteRole } from '@/api/role'
 import { queryUserRoleList, addUserRole, deleteUserRole } from '@/api/userRole'
 import { queryUserInfoByList } from '@/api/user' // 用于选择人员弹窗
+import { queryPermissionByList } from '@/api/permission'
+import { createRolePermission, deleteRolePermission, queryRolePermission, createRolePermissionById } from '@/api/rolePermission'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, Refresh, Delete, Check } from '@element-plus/icons-vue'
 
@@ -715,6 +794,220 @@ const confirmAddMembers = async () => {
   } finally {
     addMemberLoading.value = false
   }
+}
+
+// --- 接口权限管理 ---
+const permissionDialogVisible = ref(false)
+const permissionList = ref([])
+const permissionLoading = ref(false)
+const permissionLoadingBtn = ref(false)
+const permissionSearchName = ref('')
+const selectedPermissions = ref([])
+const permissionTableRef = ref(null)
+const currentRolePermissions = ref(new Set())
+const seenPermissions = ref(new Set())
+const permissionPagination = reactive({
+  currentPage: 1,
+  pageSize: 10,
+  total: 0
+})
+
+const openPermissions = async (row) => {
+  currentRole.value = row
+  permissionDialogVisible.value = true
+  permissionPagination.currentPage = 1
+  permissionSearchName.value = ''
+  selectedPermissions.value = []
+  permissionTableRef.value?.clearSelection()
+  seenPermissions.value = new Set()
+  
+  try {
+    const res = await queryRolePermission({ roleId: row.id })
+    if (Array.isArray(res)) {
+      currentRolePermissions.value = new Set(res.map(item => item.permissionId))
+    } else {
+      currentRolePermissions.value = new Set()
+    }
+  } catch (error) {
+    console.error('获取角色现有接口权限失败', error)
+    currentRolePermissions.value = new Set()
+  }
+
+  fetchPermissions()
+}
+
+const handlePermissionSearch = () => {
+  permissionPagination.currentPage = 1
+  fetchPermissions()
+}
+
+const fetchPermissions = async () => {
+  permissionLoading.value = true
+  try {
+    const params = {
+      name: permissionSearchName.value,
+      page: permissionPagination.currentPage,
+      limit: permissionPagination.pageSize
+    }
+    const res = await queryPermissionByList(params)
+    if (res && (res.records || res.data)) {
+      permissionList.value = res.records || res.data
+      permissionPagination.total = res.total || 0
+      
+      // 回填逻辑
+      nextTick(() => {
+        permissionList.value.forEach(row => {
+          if (!seenPermissions.value.has(row.id)) {
+            seenPermissions.value.add(row.id)
+            if (currentRolePermissions.value.has(row.id)) {
+              permissionTableRef.value?.toggleRowSelection(row, true)
+            }
+          }
+        })
+      })
+      
+    } else {
+      permissionList.value = []
+      permissionPagination.total = 0
+    }
+  } catch (error) {
+    console.error('获取权限列表失败', error)
+    ElMessage.error('获取权限列表失败')
+  } finally {
+    permissionLoading.value = false
+  }
+}
+
+const handlePermissionSelect = async (selection, row) => {
+  const isChecked = selection.some(item => item.id === row.id)
+  
+  try {
+    if (isChecked) {
+      // 勾选 -> 添加单个权限
+      await createRolePermissionById({
+        roleId: currentRole.value.id,
+        permissionId: row.id
+      })
+      currentRolePermissions.value.add(row.id)
+      ElMessage.success(`添加权限 [${row.name}] 成功`)
+    } else {
+      // 取消勾选 -> 删除单个权限
+      // 这里调用删除接口，假设后端支持传递数组 [row.id]
+      await deleteRolePermission({
+        roleId: currentRole.value.id,
+        permissionIds: [row.id]
+      })
+      currentRolePermissions.value.delete(row.id)
+      ElMessage.success(`删除权限 [${row.name}] 成功`)
+    }
+  } catch (error) {
+    console.error('操作权限失败', error)
+    // 发生错误时恢复表格状态
+    permissionTableRef.value?.toggleRowSelection(row, !isChecked)
+  }
+}
+
+const handlePermissionSelectAll = async (selection) => {
+  // selection 存在则表示全选，为空数组则表示取消全选当前页
+  const isSelectAll = selection.length > 0
+  const currentPageIds = permissionList.value.map(p => p.id)
+  
+  try {
+    if (isSelectAll) {
+      // 找出当前页中之前未被勾选的权限
+      const toAddIds = currentPageIds.filter(id => !currentRolePermissions.value.has(id))
+      if (toAddIds.length > 0) {
+        await createRolePermission({
+          roleId: currentRole.value.id,
+          permissionIds: toAddIds
+        })
+        toAddIds.forEach(id => currentRolePermissions.value.add(id))
+        ElMessage.success(`添加当前页 ${toAddIds.length} 个权限成功`)
+      }
+    } else {
+      // 找出当前页中之前已被勾选的权限
+      const toDeleteIds = currentPageIds.filter(id => currentRolePermissions.value.has(id))
+      if (toDeleteIds.length > 0) {
+        await deleteRolePermission({
+          roleId: currentRole.value.id,
+          permissionIds: toDeleteIds
+        })
+        toDeleteIds.forEach(id => currentRolePermissions.value.delete(id))
+        ElMessage.success(`删除当前页 ${toDeleteIds.length} 个权限成功`)
+      }
+    }
+  } catch (error) {
+    console.error('批量操作权限失败', error)
+    // 出错时最好重新拉取或恢复状态，这里简单提示
+    ElMessage.error('批量操作权限失败')
+    fetchPermissions()
+  }
+}
+
+const handleAddAllPermissions = async () => {
+  // 添加当前页所有权限
+  const toAddIds = permissionList.value.map(p => p.id).filter(id => !currentRolePermissions.value.has(id))
+  if (toAddIds.length === 0) {
+    ElMessage.info('当前页所有权限已添加')
+    return
+  }
+  permissionLoadingBtn.value = true
+  try {
+    await createRolePermission({
+      roleId: currentRole.value.id,
+      permissionIds: toAddIds
+    })
+    toAddIds.forEach(id => {
+      currentRolePermissions.value.add(id)
+      const row = permissionList.value.find(p => p.id === id)
+      if (row) {
+        permissionTableRef.value?.toggleRowSelection(row, true)
+      }
+    })
+    ElMessage.success(`添加当前页 ${toAddIds.length} 个接口权限成功`)
+  } catch (error) {
+    console.error('添加接口权限失败', error)
+  } finally {
+    permissionLoadingBtn.value = false
+  }
+}
+
+const handleDeleteAllPermissions = async () => {
+  // 删除当前页所有权限
+  const toDeleteIds = permissionList.value.map(p => p.id).filter(id => currentRolePermissions.value.has(id))
+  if (toDeleteIds.length === 0) {
+    ElMessage.info('当前页没有可删除的权限')
+    return
+  }
+  ElMessageBox.confirm(
+    `确认删除当前页的 ${toDeleteIds.length} 个接口权限吗？`,
+    '删除接口权限',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(async () => {
+    permissionLoadingBtn.value = true
+    try {
+      await deleteRolePermission({
+        roleId: currentRole.value.id,
+        permissionIds: toDeleteIds
+      })
+      toDeleteIds.forEach(id => {
+        currentRolePermissions.value.delete(id)
+        const row = permissionList.value.find(p => p.id === id)
+        if (row) {
+          permissionTableRef.value?.toggleRowSelection(row, false)
+        }
+      })
+      ElMessage.success(`删除当前页 ${toDeleteIds.length} 个接口权限成功`)
+    } catch (error) {
+      console.error('删除接口权限失败', error)
+    } finally {
+      permissionLoadingBtn.value = false
+    }
+  }).catch(() => {})
 }
 
 const tableRowClassName = ({ rowIndex }) => {
