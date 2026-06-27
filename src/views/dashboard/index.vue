@@ -195,8 +195,23 @@ const loadBurnDownChart = async () => {
         const option = {
             tooltip: { trigger: 'axis' },
             grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-            xAxis: { type: 'category', boundaryGap: false, data: dates },
-            yAxis: { type: 'value' },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: dates,
+                axisLabel: {
+                    formatter: function(value) {
+                        const d = new Date(value)
+                        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+                    },
+                    interval: Math.max(0, Math.floor((dates.length - 1) / 8)),
+                    rotate: 0
+                },
+                axisTick: {
+                    interval: 'auto'
+                }
+            },
+            yAxis: { type: 'value', minInterval: 1 },
             graphic: isEmpty
                 ? {
                       type: 'text',
@@ -208,7 +223,9 @@ const loadBurnDownChart = async () => {
             series: [{
                 name: '剩余任务',
                 type: 'line',
-                smooth: true,
+                smooth: false,
+                symbol: 'circle',
+                symbolSize: 8,
                 areaStyle: {
                     opacity: 0.3,
                     color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
@@ -217,6 +234,10 @@ const loadBurnDownChart = async () => {
                     ])
                 },
                 itemStyle: { color: '#409EFF' },
+                emphasis: {
+                    focus: 'series',
+                    itemStyle: { borderWidth: 3 }
+                },
                 data: values
             }]
         }
@@ -379,7 +400,12 @@ const loadGanttChart = async () => {
                 min: minTime - timeMargin,
                 max: maxTime + timeMargin,
                 axisLabel: {
-                    formatter: '{yyyy}-{MM}-{dd}'
+                    formatter: function(value) {
+                        const d = new Date(value)
+                        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+                    },
+                    rotate: 45,
+                    interval: 6
                 },
                 splitLine: { show: true, lineStyle: { type: 'dashed' } }
             },
